@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Salah Times — Next Prayer</title>
+  <meta name="description" content="Next prayer times for all mosques in Stanger (KwaDukuza) and Ballito">
+  <meta name="theme-color" content="#0f2d1c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ── Home page layout ── */
+    .home-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 5rem;
+    }
+
+    .home-intro {
+      text-align: center;
+      padding: 0.4rem 0 0.25rem;
+    }
+
+    .home-intro-title {
+      font-size: clamp(1.1rem, 3vw, 1.35rem);
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.01em;
+    }
+
+    .home-intro-sub {
+      font-size: 0.82rem;
+      color: var(--text-faint);
+      margin-top: 0.3rem;
+    }
+
+    /* ── Mosque next-prayer rows ── */
+    .next-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+
+    .next-row {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.1rem;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s, background 0.15s;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: var(--card-shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .next-row:hover {
+      border-color: var(--green-mid);
+      box-shadow: 0 2px 12px rgba(22,101,52,0.13);
+      background: var(--surface2);
+    }
+
+    .next-row.is-first {
+      border-color: var(--green);
+      background: linear-gradient(135deg, rgba(22,101,52,0.05) 0%, rgba(22,101,52,0.02) 100%);
+      box-shadow: 0 2px 16px rgba(22,101,52,0.14);
+    }
+
+    .next-row.is-first::before {
+      content: "NEXT UP";
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: var(--green);
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 0.18rem 0.55rem;
+      border-radius: 0 0 var(--radius-xs) 0;
+    }
+
+    .next-row.is-tomorrow {
+      opacity: 0.7;
+    }
+
+    .next-row-rank {
+      width: 1.4rem;
+      flex-shrink: 0;
+      font-size: 0.72rem;
+      color: var(--text-faint);
+      font-weight: 600;
+      text-align: right;
+      margin-right: 0.75rem;
+    }
+
+    .next-row-mosque {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .next-row-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .next-row-prayer {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-top: 0.15rem;
+    }
+
+    .next-row-prayer-name {
+      font-size: 0.78rem;
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .next-row-prayer-arabic {
+      font-family: "Amiri", serif;
+      font-size: 0.82rem;
+      color: var(--text-faint);
+      direction: rtl;
+    }
+
+    .next-row-tomorrow-badge {
+      font-size: 0.68rem;
+      background: var(--gold-glow2);
+      color: var(--gold-light);
+      border: 1px solid rgba(180,83,9,0.2);
+      border-radius: 4px;
+      padding: 0.08rem 0.35rem;
+      font-weight: 600;
+      margin-left: 0.2rem;
+    }
+
+    .next-row-time {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+      margin-left: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .next-row.is-first .next-row-time {
+      color: var(--green);
+    }
+
+    .next-row-arrow {
+      flex-shrink: 0;
+      margin-left: 0.6rem;
+      color: var(--border3);
+      font-size: 0.9rem;
+    }
+
+    /* ── Loading / error states ── */
+    .home-loading {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-faint);
+    }
+
+    .home-loading .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 0.75rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .home-loading-sub {
+      font-size: 0.8rem;
+      color: var(--text-faint);
+      margin-top: 0.3rem;
+    }
+
+    /* ── "Full schedule" button ── */
+    .home-action-bar {
+      margin-top: 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .btn-full-schedule {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--green);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.7rem 1.6rem;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      transition: background 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 10px rgba(22,101,52,0.25);
+      letter-spacing: 0.01em;
+    }
+
+    .btn-full-schedule:hover {
+      background: var(--green-mid);
+      box-shadow: 0 4px 16px rgba(22,101,52,0.35);
+    }
+
+    .btn-full-schedule svg {
+      transition: transform 0.15s;
+    }
+
+    .btn-full-schedule:hover svg {
+      transform: translateX(3px);
+    }
+
+    /* ── Countdown strip ── */
+    .countdown-strip {
+      text-align: center;
+      margin-top: 0.85rem;
+      font-size: 0.82rem;
+      color: var(--text-faint);
+    }
+
+    .countdown-strip strong {
+      color: var(--green);
+    }
+
+    /* ── Last updated note ── */
+    .home-updated {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-faint);
+      margin-top: 1rem;
+    }
+
+    /* ── Divider ornament (reuse footer-divider style) ── */
+    .home-divider {
+      margin: 1.25rem auto 0;
+      max-width: 320px;
+    }
+
+    /* ── Responsive tweak for very small screens ── */
+    @media (max-width: 360px) {
+      .next-row-time { font-size: 1.2rem; }
+      .next-row-name { font-size: 0.88rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Arabic calligraphy background (decorative) -->
+  <div class="calligraphy-bg" aria-hidden="true" role="presentation">
+    <span class="cal-1">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>
+    <span class="cal-2">الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ</span>
+    <span class="cal-3">لَا إِلَٰهَ إِلَّا ٱللَّهُ</span>
+    <span class="cal-4">اللَّهُ أَكْبَرُ</span>
+    <span class="cal-5">سُبْحَانَ ٱللَّهِ وَبِحَمْدِهِ</span>
+    <span class="cal-6">ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>
+    <span class="cal-7">مُحَمَّدٌ رَّسُولُ ٱللَّهِ</span>
+    <span class="cal-8">رَبِّ ٱلْعَالَمِينَ</span>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <a href="index.html" class="header-logo">
+      <svg class="logo-dome" width="34" height="30" viewBox="0 0 34 30" fill="none" aria-hidden="true">
+        <path d="M17 2 C10 2 4 7.5 4 14 L4 17 L30 17 L30 14 C30 7.5 24 2 17 2 Z"
+              fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+        <rect x="2" y="17" width="30" height="2.5" rx="1" fill="rgba(255,255,255,0.5)"/>
+        <rect x="6"  y="19.5" width="4" height="9" rx="1" fill="rgba(255,255,255,0.3)"/>
+        <rect x="24" y="19.5" width="4" height="9" rx="1" fill="rgba(255,255,255,0.3)"/>
+        <rect x="14.5" y="19.5" width="5" height="9" rx="1" fill="rgba(255,255,255,0.35)"/>
+        <line x1="17" y1="0" x2="17" y2="2" stroke="rgba(255,255,255,0.8)" stroke-width="1.5"/>
+        <circle cx="17" cy="0" r="1.5" fill="rgba(255,255,255,0.75)"/>
+      </svg>
+      <div class="logo-text-wrap">
+        <span class="logo-title">Salah Times</span>
+        <span class="logo-sub">Stanger · Ballito</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <span class="live-clock" id="live-clock">—</span>
+      <button id="refresh-btn" class="icon-btn" title="Refresh all">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+      <a href="admin.html" class="icon-btn" title="Admin">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="home-wrap">
+
+    <!-- Islamic arch frame -->
+    <div class="mosque-section">
+      <div class="arch-wrap" aria-hidden="true">
+        <svg class="arch-svg" viewBox="0 0 600 260" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+          <path d="M45,260 L45,168 Q45,10 300,10 Q555,10 555,168 L555,260 Z" fill="rgba(22,101,52,0.03)"/>
+          <path d="M45,260 L45,168 Q45,10 300,10 Q555,10 555,168 L555,260" fill="none" stroke="rgba(22,101,52,0.45)" stroke-width="1.8"/>
+          <path d="M82,260 L82,180 Q82,52 300,52 Q518,52 518,180 L518,260" fill="none" stroke="rgba(22,101,52,0.2)" stroke-width="1.2"/>
+          <path d="M115,260 L115,192 Q115,88 300,88 Q485,88 485,192 L485,260" fill="none" stroke="rgba(22,101,52,0.1)" stroke-width="1"/>
+          <line x1="300" y1="0" x2="300" y2="10" stroke="rgba(161,93,9,0.7)" stroke-width="2"/>
+          <circle cx="300" cy="10" r="7" fill="rgba(161,93,9,0.12)" stroke="rgba(161,93,9,0.6)" stroke-width="1.5"/>
+          <circle cx="300" cy="10" r="3" fill="rgba(161,93,9,0.5)"/>
+          <circle cx="128" cy="118" r="22" fill="none" stroke="rgba(161,93,9,0.14)" stroke-width="1"/>
+          <circle cx="128" cy="118" r="12" fill="none" stroke="rgba(161,93,9,0.1)" stroke-width="1"/>
+          <circle cx="128" cy="118" r="4"  fill="rgba(161,93,9,0.1)"/>
+          <path d="M128,96 Q135,107 128,118 Q121,107 128,96 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M150,118 Q139,125 128,118 Q139,111 150,118 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M128,140 Q121,129 128,118 Q135,129 128,140 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M106,118 Q117,111 128,118 Q117,125 106,118 Z" fill="rgba(161,93,9,0.07)"/>
+          <circle cx="472" cy="118" r="22" fill="none" stroke="rgba(161,93,9,0.14)" stroke-width="1"/>
+          <circle cx="472" cy="118" r="12" fill="none" stroke="rgba(161,93,9,0.1)" stroke-width="1"/>
+          <circle cx="472" cy="118" r="4"  fill="rgba(161,93,9,0.1)"/>
+          <path d="M472,96 Q479,107 472,118 Q465,107 472,96 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M494,118 Q483,125 472,118 Q483,111 494,118 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M472,140 Q465,129 472,118 Q479,129 472,140 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M450,118 Q461,111 472,118 Q461,125 450,118 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M128,74 L129.6,80 L135,77 L131.8,82.2 L138,83.5 L131.8,84.8 L135,90 L129.6,87 L128,93 L126.4,87 L121,90 L124.2,84.8 L118,83.5 L124.2,82.2 L121,77 L126.4,80 Z" fill="none" stroke="rgba(161,93,9,0.18)" stroke-width="0.8"/>
+          <path d="M472,74 L473.6,80 L479,77 L475.8,82.2 L482,83.5 L475.8,84.8 L479,90 L473.6,87 L472,93 L470.4,87 L465,90 L468.2,84.8 L462,83.5 L468.2,82.2 L465,77 L470.4,80 Z" fill="none" stroke="rgba(161,93,9,0.18)" stroke-width="0.8"/>
+          <rect x="30"  y="164" width="30" height="8" rx="2" fill="rgba(22,101,52,0.12)" stroke="rgba(22,101,52,0.28)" stroke-width="1"/>
+          <rect x="540" y="164" width="30" height="8" rx="2" fill="rgba(22,101,52,0.12)" stroke="rgba(22,101,52,0.28)" stroke-width="1"/>
+          <rect x="26"  y="248" width="38" height="10" rx="2" fill="rgba(22,101,52,0.08)" stroke="rgba(22,101,52,0.2)" stroke-width="1"/>
+          <rect x="536" y="248" width="38" height="10" rx="2" fill="rgba(22,101,52,0.08)" stroke="rgba(22,101,52,0.2)" stroke-width="1"/>
+          <line x1="24" y1="259" x2="576" y2="259" stroke="rgba(22,101,52,0.2)" stroke-width="1"/>
+          <line x1="100" y1="196" x2="500" y2="196" stroke="rgba(22,101,52,0.08)" stroke-width="0.8" stroke-dasharray="4,6"/>
+        </svg>
+      </div>
+      <div class="arch-content">
+        <p class="bismillah-text" aria-label="Bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
+        <div class="home-intro">
+          <h1 class="home-intro-title">Next Salah — All Masājid</h1>
+          <p class="home-intro-sub" id="home-date">Loading…</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="next-list-wrap">
+      <div class="home-loading">
+        <div class="spinner"></div>
+        <p>Fetching prayer times…</p>
+        <p class="home-loading-sub">Checking all masājid</p>
+      </div>
+    </div>
+
+    <div id="countdown-strip" class="countdown-strip" style="display:none">
+      Next prayer in <strong id="countdown-val">—</strong>
+    </div>
+
+    <div class="home-divider" aria-hidden="true">
+      <svg viewBox="0 0 320 20" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style="width:100%;height:20px">
+        <line x1="0"   y1="10" x2="130" y2="10" stroke="rgba(22,101,52,0.2)" stroke-width="1"/>
+        <path d="M150,3 L156,10 L150,17 L144,10 Z" fill="rgba(22,101,52,0.3)"/>
+        <path d="M160,5 L166,10 L160,15 L154,10 Z" fill="rgba(161,93,9,0.55)"/>
+        <path d="M170,3 L176,10 L170,17 L164,10 Z" fill="rgba(22,101,52,0.3)"/>
+        <line x1="190" y1="10" x2="320" y2="10" stroke="rgba(22,101,52,0.2)" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <div class="home-action-bar">
+      <a href="schedule.html" class="btn-full-schedule">
+        Full Prayer Schedule
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+
+    <p id="home-updated" class="home-updated"></p>
+
+  </div>
+
+  <div class="footer-divider" aria-hidden="true">
+    <svg viewBox="0 0 600 20" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <line x1="0"   y1="10" x2="240" y2="10" stroke="rgba(22,101,52,0.2)" stroke-width="1"/>
+      <path d="M280,3 L286,10 L280,17 L274,10 Z" fill="rgba(22,101,52,0.3)"/>
+      <path d="M300,5 L306,10 L300,15 L294,10 Z" fill="rgba(161,93,9,0.55)"/>
+      <path d="M320,3 L326,10 L320,17 L314,10 Z" fill="rgba(22,101,52,0.3)"/>
+      <line x1="360" y1="10" x2="600" y2="10" stroke="rgba(22,101,52,0.2)" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <footer class="app-footer">
+    <p>All times are Jamaat times</p>
+    <a href="admin.html" class="footer-link">Admin</a>
+  </footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    const PRAYER_ARABIC_HOME = {
+      fajr: "الفجر", zohr: "الظهر", asar: "العصر", maghrib: "المغرب", esha: "العشاء"
+    };
+
+    class HomeApp {
+      constructor() {
+        this.todayStr = new Date().toISOString().split("T")[0];
+        this.countdownInterval = null;
+        this.nextPrayerTime = null;
+        this.init();
+      }
+
+      init() {
+        this.startClock();
+        this.updateDateDisplay();
+        this.loadAll();
+        document.getElementById("refresh-btn").addEventListener("click", () => {
+          MOSQUES.forEach(m => api.clearCache(m.id));
+          this.loadAll();
+        });
+      }
+
+      startClock() {
+        const tick = () => {
+          const el = document.getElementById("live-clock");
+          if (el) el.textContent = new Date().toLocaleTimeString("en-ZA", {
+            hour: "2-digit", minute: "2-digit", second: "2-digit"
+          });
+        };
+        tick();
+        setInterval(tick, 1000);
+      }
+
+      updateDateDisplay() {
+        const el = document.getElementById("home-date");
+        if (el) el.textContent = new Date().toLocaleDateString("en-ZA", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric"
+        });
+      }
+
+      parseTime(timeStr) {
+        const [h, m] = timeStr.split(":").map(Number);
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        return d;
+      }
+
+      normalizeTime(timeStr, prayer) {
+        return api.normalizeTime(timeStr, prayer) || timeStr;
+      }
+
+      // Returns { prayer, time, tomorrow } for the next upcoming prayer
+      getNextInfo(times) {
+        const now = new Date();
+        for (const prayer of ["fajr", "zohr", "asar", "maghrib", "esha"]) {
+          const raw = api.getEffectiveTime(times, prayer, this.todayStr);
+          const t   = this.normalizeTime(raw, prayer);
+          if (t && this.parseTime(t) > now) {
+            return { prayer, time: t, tomorrow: false };
+          }
+        }
+        // All passed — wrap around to Fajr (treat as tomorrow)
+        const rawFajr = api.getEffectiveTime(times, "fajr", this.todayStr);
+        return { prayer: "fajr", time: this.normalizeTime(rawFajr, "fajr") || "—", tomorrow: true };
+      }
+
+      // Sort key: minutes from midnight; tomorrow entries get +1440
+      sortKey(info) {
+        if (!info.time || info.time === "—") return 9999;
+        const [h, m] = info.time.split(":").map(Number);
+        return (info.tomorrow ? 1440 : 0) + h * 60 + m;
+      }
+
+      async loadAll() {
+        const wrap = document.getElementById("next-list-wrap");
+        wrap.innerHTML = `
+          <div class="home-loading">
+            <div class="spinner"></div>
+            <p>Fetching prayer times…</p>
+            <p class="home-loading-sub">Checking all masājid</p>
+          </div>`;
+
+        document.getElementById("countdown-strip").style.display = "none";
+        clearInterval(this.countdownInterval);
+
+        // Fetch all mosque times in parallel
+        const results = await Promise.all(
+          MOSQUES.map(async mosque => {
+            try {
+              const times = await api.getTimes(mosque);
+              const info = this.getNextInfo(times);
+              return { mosque, times, info };
+            } catch (e) {
+              return { mosque, times: null, info: { prayer: "fajr", time: "—", tomorrow: false } };
+            }
+          })
+        );
+
+        // Use mosques with working live APIs to determine the current prayer period.
+        // Mosques with no API fall back to hardcoded defaults stored as "1:15" (1 PM),
+        // which parseTime reads as 1:15 AM — already past — so they wrongly land on
+        // "Fajr tomorrow". Fix: find the reference prayer from non-tomorrow results
+        // and force it onto any mosque that ended up at tomorrow.
+        const todayResults = results.filter(r => !r.info.tomorrow && r.info.time !== "—");
+        if (todayResults.length > 0) {
+          const prayerOrder = ["fajr", "zohr", "asar", "maghrib", "esha"];
+          const counts = {};
+          todayResults.forEach(r => { counts[r.info.prayer] = (counts[r.info.prayer] || 0) + 1; });
+          // Most common prayer among working mosques = current prayer period
+          const referencePrayer = prayerOrder
+            .filter(p => counts[p])
+            .sort((a, b) => (counts[b] || 0) - (counts[a] || 0))[0];
+
+          // For Maghrib (and any prayer a mosque lacks in its own data), borrow the
+          // time from a working mosque. Maghrib is astronomical (sunset) — same for
+          // the whole area — so the shared time is accurate.
+          const refResult = todayResults.find(r => r.info.prayer === referencePrayer);
+          const fallbackTime = refResult ? refResult.info.time : null;
+
+          results.forEach(r => {
+            if (r.info.tomorrow && referencePrayer) {
+              let t = null;
+              if (r.times) {
+                const raw = api.getEffectiveTime(r.times, referencePrayer, this.todayStr);
+                t = this.normalizeTime(raw, referencePrayer);
+              }
+              // Use own time if available; otherwise share the reference mosque's time
+              const timeToUse = t || fallbackTime;
+              if (timeToUse) r.info = { prayer: referencePrayer, time: timeToUse, tomorrow: false };
+            }
+          });
+        }
+
+        // Sort by next prayer time ascending
+        results.sort((a, b) => this.sortKey(a.info) - this.sortKey(b.info));
+
+        this.render(results);
+      }
+
+      render(results) {
+        const wrap = document.getElementById("next-list-wrap");
+
+        // Find earliest non-tomorrow entry for countdown
+        const firstToday = results.find(r => !r.info.tomorrow && r.info.time !== "—");
+        if (firstToday) {
+          this.nextPrayerTime = this.parseTime(firstToday.info.time);
+          this.startCountdown();
+        }
+
+        const rows = results.map((r, i) => {
+          const { mosque, info } = r;
+          const isFirst = i === 0 && !info.tomorrow;
+          const prayerLabel = PRAYER_LABELS[info.prayer] || info.prayer;
+          const prayerArabic = PRAYER_ARABIC_HOME[info.prayer] || "";
+
+          return `
+            <a class="next-row${isFirst ? " is-first" : ""}${info.tomorrow ? " is-tomorrow" : ""}"
+               href="schedule.html"
+               data-mosque-id="${mosque.id}"
+               aria-label="${mosque.name} — next prayer: ${prayerLabel} at ${info.time}${info.tomorrow ? " (tomorrow)" : ""}">
+              <span class="next-row-rank" aria-hidden="true">${i + 1}</span>
+              <div class="next-row-mosque">
+                <div class="next-row-name">${mosque.name}</div>
+                <div class="next-row-prayer">
+                  <span class="next-row-prayer-name">${prayerLabel}</span>
+                  <span class="next-row-prayer-arabic">${prayerArabic}</span>
+                  ${info.tomorrow ? '<span class="next-row-tomorrow-badge">tomorrow</span>' : ""}
+                </div>
+              </div>
+              <span class="next-row-time">${info.time}</span>
+              <span class="next-row-arrow" aria-hidden="true">›</span>
+            </a>`;
+        }).join("");
+
+        wrap.innerHTML = `<div class="next-list" role="list">${rows}</div>`;
+
+        // Navigate to index.html with the mosque pre-selected
+        wrap.querySelectorAll(".next-row").forEach(el => {
+          el.addEventListener("click", e => {
+            e.preventDefault();
+            const mosqueId = el.dataset.mosqueId;
+            if (mosqueId) localStorage.setItem("selectedMosque", mosqueId);
+            window.location.href = "index.html";
+          });
+        });
+
+        // Updated time note
+        const updatedEl = document.getElementById("home-updated");
+        if (updatedEl) {
+          updatedEl.textContent = "Tap any row to see full details for that masjid";
+        }
+      }
+
+      startCountdown() {
+        const strip = document.getElementById("countdown-strip");
+        const val   = document.getElementById("countdown-val");
+        if (!strip || !val) return;
+        strip.style.display = "";
+
+        const tick = () => {
+          if (!this.nextPrayerTime) return;
+          const diff = Math.floor((this.nextPrayerTime - new Date()) / 1000);
+          if (diff <= 0) {
+            val.textContent = "Time for prayer";
+            return;
+          }
+          const h = Math.floor(diff / 3600);
+          const m = Math.floor((diff % 3600) / 60);
+          const s = diff % 60;
+          val.textContent = `${h > 0 ? h + "h " : ""}${m}m ${String(s).padStart(2, "0")}s`;
+        };
+
+        tick();
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = setInterval(tick, 1000);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => new HomeApp());
+  </script>
+</body>
+</html>

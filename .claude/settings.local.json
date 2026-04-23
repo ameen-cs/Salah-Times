@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST https://api.supabase.superbbulk.co.za/rest/v1/salah_times -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE' -H 'Content-Type: application/json' -H 'Prefer: return=representation' -d '{\"mosque_id\":\"test\",\"mosque_name\":\"Test\",\"fajr\":\"5:50\",\"zohr\":\"1:15\",\"asar\":\"4:30\",\"esha\":\"7:15\",\"juma_khutbah\":\"12:45\",\"special_times\":{},\"updated_at\":\"2026-04-17T00:00:00Z\"}')",
+      "Bash(curl -s -X POST https://api.supabase.superbbulk.co.za/rest/v1/rpc/exec_sql -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE' -H 'Content-Type: application/json' -d '{\"query\": \"CREATE TABLE IF NOT EXISTS salah_times \\(id uuid DEFAULT gen_random_uuid\\(\\) PRIMARY KEY, mosque_id text NOT NULL UNIQUE, mosque_name text NOT NULL, fajr text, zohr text, asar text, maghrib text, esha text, juma_khutbah text, special_times jsonb DEFAULT \\\\\"{}\\\\\", updated_at timestamptz DEFAULT now\\(\\), updated_by text\\);\"}')",
+      "WebFetch(domain:premium.masjidboardlive.com)",
+      "WebFetch(domain:api.masjidboardlive.com)"
+    ]
+  }
+}

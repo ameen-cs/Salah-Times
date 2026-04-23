@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Salah Times</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="admin-body">
+
+  <header class="admin-header">
+    <span style="font-size:1.4rem">🕌</span>
+    <h1>Salah Times — Admin Panel</h1>
+    <div style="margin-left:auto; display:flex; gap:0.5rem">
+      <a href="index.html" class="btn btn-secondary" style="text-decoration:none; font-size:0.85rem; padding:0.4rem 0.9rem">← Back to Site</a>
+      <button id="logout-btn" class="btn btn-danger" style="font-size:0.85rem; padding:0.4rem 0.9rem">Logout</button>
+    </div>
+  </header>
+
+  <!-- Login -->
+  <section class="login-section" id="login-section">
+    <div class="login-card">
+      <div class="icon">🔐</div>
+      <h2>Admin Login</h2>
+      <p>Enter your password to manage prayer times</p>
+      <div id="login-alert"></div>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Enter admin password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Dashboard -->
+  <div class="dashboard-section" id="dashboard-section">
+    <div class="admin-container">
+
+      <!-- DB Setup Banner -->
+      <div id="db-setup-banner" style="display:none; background:rgba(212,160,23,0.12); border:1px solid #d4a017; border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;">
+        <strong style="color:#f5c842">⚠️ Database table not found</strong>
+        <p style="color:#c8a84b; font-size:0.875rem; margin:0.5rem 0 0.75rem">The <code>salah_times</code> table doesn't exist yet in your Supabase database. Run the SQL below in your Supabase dashboard to create it, then refresh this page.</p>
+        <details>
+          <summary style="cursor:pointer; color:#f5c842; font-size:0.85rem; font-weight:600">Show setup SQL ▾</summary>
+          <pre id="setup-sql-display" style="background:#0d1f13; color:#81c784; padding:1rem; border-radius:8px; font-size:0.78rem; overflow-x:auto; margin-top:0.75rem; white-space:pre-wrap"></pre>
+        </details>
+      </div>
+
+      <!-- Paste & Parse -->
+      <div class="section-card">
+        <h2>📋 Paste &amp; Parse Times</h2>
+        <p style="color: var(--text-muted); font-size:0.875rem; margin-bottom:1rem">
+          Paste the Salah times in the standard format (mosque name, then Fajr/Zohr/Asr/Esha/Juma lines).
+          Supports day-specific overrides like "- Sunday - 12:45".
+        </p>
+        <div class="form-group">
+          <label for="paste-input">Paste Times Here</label>
+          <textarea id="paste-input" rows="14" placeholder="Jamia&#10;&#10;Fajr    - 5:50&#10;Zohr   - 1:15&#10;- Sunday - 12:45&#10;Asar  - 4:30&#10;Esha - 7:15&#10;Juma Khutbah - 12:45&#10;&#10;Nur&#10;&#10;Fajr - 5:50&#10;..."></textarea>
+        </div>
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap">
+          <button id="parse-btn" class="btn btn-primary" style="width:auto">🔍 Parse Times</button>
+          <button id="save-parsed-btn" class="btn btn-gold" style="display:none">💾 Save to Database</button>
+        </div>
+        <div id="parse-alert"></div>
+        <div id="parse-result"></div>
+      </div>
+
+      <!-- Mosque Times Table -->
+      <div class="section-card">
+        <h2>🕌 All Mosque Times</h2>
+        <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap">
+          <button class="btn btn-gold" onclick="admin.saveAllToDb()">💾 Save All to Database</button>
+        </div>
+        <div id="table-alert"></div>
+        <div style="overflow-x:auto">
+          <table class="times-table">
+            <thead>
+              <tr>
+                <th>Mosque</th>
+                <th>Fajr</th>
+                <th>Zohr</th>
+                <th>Asr</th>
+                <th>Esha</th>
+                <th>Jumu'ah</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="mosque-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Database Info -->
+      <div class="section-card">
+        <h2>🗄️ Database Info</h2>
+        <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:0.5rem">
+          Table: <code style="background:var(--bg); padding:2px 6px; border-radius:4px; color:var(--gold-light)">salah_times</code>
+          &nbsp; · &nbsp; Supabase URL: <code style="background:var(--bg); padding:2px 6px; border-radius:4px; color:var(--text-muted); font-size:0.78rem">https://api.supabase.superbbulk.co.za</code>
+        </p>
+        <p style="color:var(--text-dim); font-size:0.8rem">
+          The site reads from the database first, then falls back to default times if the database has no entry.
+          Use "Save to Database" to persist changes. Use "Paste &amp; Parse" to bulk-update all mosques from the standard format.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal-box">
+      <h2>Edit: <span id="edit-mosque-name"></span></h2>
+      <div id="edit-alert"></div>
+      <form id="edit-form">
+        <!-- Jamaat times -->
+        <p style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--green); margin-bottom:0.6rem">Jamaat (Iqāmah) Times</p>
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Fajr Jamaat</label>
+            <input type="text" id="edit-fajr" placeholder="5:50">
+          </div>
+          <div class="form-group">
+            <label>Zohr Jamaat</label>
+            <input type="text" id="edit-zohr" placeholder="1:15">
+          </div>
+          <div class="form-group">
+            <label>Asr Jamaat</label>
+            <input type="text" id="edit-asar" placeholder="4:30">
+          </div>
+          <div class="form-group">
+            <label>Maghrib Jamaat</label>
+            <input type="text" id="edit-maghrib" placeholder="Optional">
+          </div>
+          <div class="form-group">
+            <label>Esha Jamaat</label>
+            <input type="text" id="edit-esha" placeholder="7:15">
+          </div>
+          <div class="form-group">
+            <label>Jumu'ah Khutbah</label>
+            <input type="text" id="edit-juma" placeholder="12:45">
+          </div>
+        </div>
+        <!-- Adhan times -->
+        <p style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--gold-light); margin:1rem 0 0.6rem">Adhān (Azān) Times</p>
+        <div class="modal-grid">
+          <div class="form-group">
+            <label>Fajr Adhān</label>
+            <input type="text" id="edit-adhan-fajr" placeholder="5:30">
+          </div>
+          <div class="form-group">
+            <label>Zohr Adhān</label>
+            <input type="text" id="edit-adhan-zohr" placeholder="1:00">
+          </div>
+          <div class="form-group">
+            <label>Asr Adhān</label>
+            <input type="text" id="edit-adhan-asar" placeholder="4:15">
+          </div>
+          <div class="form-group">
+            <label>Maghrib Adhān</label>
+            <input type="text" id="edit-adhan-maghrib" placeholder="Optional">
+          </div>
+          <div class="form-group">
+            <label>Esha Adhān</label>
+            <input type="text" id="edit-adhan-esha" placeholder="7:00">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Special Times (JSON)</label>
+          <textarea id="edit-special" rows="6" placeholder='{"zohr": {"sunday": "12:45"}, "esha": {"2026-04-20": "7:10"}}'></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancel-edit-btn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
