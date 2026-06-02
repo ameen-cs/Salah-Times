@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Salah Times — Stanger &amp; Ballito Prayer Times</title>
+  <meta name="description" content="Live Jamaat prayer times for all masājid in Stanger (KwaDukuza) and Ballito. Fajr, Zohr, Asr, Maghrib, Esha and Jumu'ah times — updated automatically.">
+  <meta name="theme-color" content="#2A1F18">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Salah Times">
+  <link rel="canonical" href="https://stanger-salah-times.netlify.app/">
+
+  <!-- Icons & PWA -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Open Graph / WhatsApp / Slack -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Salah Times — Stanger &amp; Ballito">
+  <meta property="og:title" content="Salah Times — Stanger &amp; Ballito">
+  <meta property="og:description" content="Live Jamaat prayer times for all masājid in Stanger (KwaDukuza) and Ballito.">
+  <meta property="og:url" content="https://stanger-salah-times.netlify.app/">
+  <meta property="og:image" content="https://stanger-salah-times.netlify.app/logo.png">
+  <meta property="og:locale" content="en_ZA">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Salah Times — Stanger &amp; Ballito">
+  <meta name="twitter:description" content="Live Jamaat prayer times for all masājid in Stanger (KwaDukuza) and Ballito.">
+  <meta name="twitter:image" content="https://stanger-salah-times.netlify.app/logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Structured data: site + each masjid -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://stanger-salah-times.netlify.app/#website",
+        "url": "https://stanger-salah-times.netlify.app/",
+        "name": "Salah Times — Stanger & Ballito",
+        "description": "Live Jamaat prayer times for all masājid in Stanger (KwaDukuza) and Ballito.",
+        "inLanguage": "en-ZA"
+      },
+      { "@type": "Mosque", "name": "Stanger Jamia Masjid",                "address": { "@type": "PostalAddress", "addressLocality": "KwaDukuza (Stanger)", "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Musjid Noor",                 "address": { "@type": "PostalAddress", "addressLocality": "KwaDukuza (Stanger)", "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Munawwar Masjid",             "address": { "@type": "PostalAddress", "addressLocality": "KwaDukuza (Stanger)", "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Darul Uloom",                 "address": { "@type": "PostalAddress", "addressLocality": "KwaDukuza (Stanger)", "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Manor Musallah",              "address": { "@type": "PostalAddress", "addressLocality": "KwaDukuza (Stanger)", "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Blythedale Beach Musallah",   "address": { "@type": "PostalAddress", "addressLocality": "Blythedale Beach",     "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Sunnypark Musallah",          "address": { "@type": "PostalAddress", "addressLocality": "KwaDukuza (Stanger)", "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Glenhills Musallah",          "address": { "@type": "PostalAddress", "addressLocality": "Glen Hills",           "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Ballito Jamia Masjid",            "address": { "@type": "PostalAddress", "addressLocality": "Ballito",              "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
+      { "@type": "Mosque", "name": "Chakaskraal Musjid",          "address": { "@type": "PostalAddress", "addressLocality": "Chakas Kraal",         "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } }
+    ]
+  }
+  </script>
+  <style>
+    /* ── Home page layout ── */
+    .home-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 5rem;
+    }
+
+    .home-intro {
+      text-align: center;
+      padding: 0.4rem 0 0.25rem;
+    }
+
+    .home-intro-title {
+      font-size: clamp(1.1rem, 3vw, 1.35rem);
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.01em;
+    }
+
+    .home-intro-sub {
+      font-size: 0.82rem;
+      color: var(--text-faint);
+      margin-top: 0.3rem;
+    }
+
+    /* ── Moon phase glyph ── */
+    .moon-phase {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      padding: 0.2rem 0.7rem 0.2rem 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+    .moon-phase-svg {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      /* Southern Hemisphere: moon limb flipped vs. Northern */
+      transform: scaleX(-1);
+    }
+    .moon-phase-disc {
+      fill: #1a1a1f;
+    }
+    .moon-phase-lit {
+      fill: #E8D4AA;
+    }
+    .moon-phase-label {
+      white-space: nowrap;
+    }
+    .moon-phase-illum {
+      color: var(--text-faint);
+      margin-left: 0.25rem;
+    }
+
+    /* ── Mosque next-prayer rows ── */
+    .next-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+
+    .next-row {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.1rem;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s, background 0.15s;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: var(--card-shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .next-row:hover {
+      border-color: var(--green-mid);
+      box-shadow: 0 2px 12px rgba(139,107,61,0.13);
+      background: var(--surface2);
+    }
+
+    .next-row.is-first {
+      border-color: var(--green);
+      background: linear-gradient(135deg, rgba(139,107,61,0.05) 0%, rgba(139,107,61,0.02) 100%);
+      box-shadow: 0 2px 16px rgba(139,107,61,0.14);
+    }
+
+    .next-row.is-first::before {
+      content: "NEXT UP";
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: var(--green);
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 0.18rem 0.55rem;
+      border-radius: 0 0 var(--radius-xs) 0;
+    }
+
+    .next-row.is-tomorrow {
+      opacity: 0.7;
+    }
+
+    .next-row-rank {
+      width: 1.4rem;
+      flex-shrink: 0;
+      font-size: 0.72rem;
+      color: var(--text-faint);
+      font-weight: 600;
+      text-align: right;
+      margin-right: 0.75rem;
+    }
+
+    .next-row-mosque {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .next-row-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .next-row-prayer {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-top: 0.15rem;
+    }
+
+    .next-row-prayer-name {
+      font-size: 0.78rem;
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .next-row-prayer-arabic {
+      font-family: "Amiri", serif;
+      font-size: 0.82rem;
+      color: var(--text-faint);
+      direction: rtl;
+    }
+
+    .next-row-tomorrow-badge {
+      font-size: 0.68rem;
+      background: var(--gold-glow2);
+      color: var(--gold-light);
+      border: 1px solid rgba(180,83,9,0.2);
+      border-radius: 4px;
+      padding: 0.08rem 0.35rem;
+      font-weight: 600;
+      margin-left: 0.2rem;
+    }
+
+    .next-row-time {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+      margin-left: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .next-row.is-first .next-row-time {
+      color: var(--green);
+    }
+
+    .next-row-arrow {
+      flex-shrink: 0;
+      margin-left: 0.6rem;
+      color: var(--border3);
+      font-size: 0.9rem;
+    }
+
+    /* ── Loading / error states ── */
+    .home-loading {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-faint);
+    }
+
+    .home-loading .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 0.75rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .home-loading-sub {
+      font-size: 0.8rem;
+      color: var(--text-faint);
+      margin-top: 0.3rem;
+    }
+
+    /* ── "Full schedule" button ── */
+    .home-action-bar {
+      margin-top: 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .btn-full-schedule {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--green);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.7rem 1.6rem;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      transition: background 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 10px rgba(139,107,61,0.25);
+      letter-spacing: 0.01em;
+    }
+
+    .btn-full-schedule:hover {
+      background: var(--green-mid);
+      box-shadow: 0 4px 16px rgba(139,107,61,0.35);
+    }
+
+    .btn-full-schedule svg {
+      transition: transform 0.15s;
+    }
+
+    .btn-full-schedule:hover svg {
+      transform: translateX(3px);
+    }
+
+    /* ── Countdown strip ── */
+    .countdown-strip {
+      text-align: center;
+      margin-top: 0.85rem;
+      font-size: 0.82rem;
+      color: var(--text-faint);
+    }
+
+    .countdown-strip strong {
+      color: var(--green);
+    }
+
+    /* ── Last updated note ── */
+    .home-updated {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-faint);
+      margin-top: 1rem;
+    }
+
+    /* ── Divider ornament (reuse footer-divider style) ── */
+    .home-divider {
+      margin: 1.25rem auto 0;
+      max-width: 320px;
+    }
+
+    /* ── Prayer filter bar ── */
+    .prayer-filter-bar {
+      display: flex;
+      gap: 0.4rem;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding: 0.1rem 0 0.75rem;
+      margin-top: -0.25rem;
+    }
+    .prayer-filter-bar::-webkit-scrollbar { display: none; }
+
+    .prayer-filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.32rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      color: var(--text-faint);
+      font-size: 0.76rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      letter-spacing: 0.01em;
+    }
+    .prayer-filter-btn:hover {
+      background: var(--surface3);
+      border-color: var(--border3);
+      color: var(--text-muted);
+    }
+    .prayer-filter-btn.active {
+      background: #2A1F18;
+      border-color: #2A1F18;
+      color: #E8D4AA;
+    }
+    .prayer-filter-btn .btn-arabic {
+      font-family: "Amiri", serif;
+      font-size: 0.85rem;
+      opacity: 0.75;
+    }
+
+    /* ── Row adhan sub-line (specific prayer mode) ── */
+    .next-row-adhan {
+      font-size: 0.72rem;
+      color: var(--text-faint);
+      margin-top: 0.1rem;
+    }
+
+    /* ── Responsive tweak for very small screens ── */
+    @media (max-width: 360px) {
+      .next-row-time { font-size: 1.2rem; }
+      .next-row-name { font-size: 0.88rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Arabic calligraphy background (decorative) -->
+  <div class="calligraphy-bg" aria-hidden="true" role="presentation">
+    <span class="cal-1">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>
+    <span class="cal-2">الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ</span>
+    <span class="cal-3">لَا إِلَٰهَ إِلَّا ٱللَّهُ</span>
+    <span class="cal-4">اللَّهُ أَكْبَرُ</span>
+    <span class="cal-5">سُبْحَانَ ٱللَّهِ وَبِحَمْدِهِ</span>
+    <span class="cal-6">ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>
+    <span class="cal-7">مُحَمَّدٌ رَّسُولُ ٱللَّهِ</span>
+    <span class="cal-8">رَبِّ ٱلْعَالَمِينَ</span>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <a href="index.html" class="header-logo">
+      <img class="logo-dome" src="/logo.png" alt="Masjid-un-Noor Stanger logo" height="32">
+      <div class="logo-text-wrap">
+        <span class="logo-title">Salah Times</span>
+        <span class="logo-sub">Stanger · Ballito</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <span class="live-clock" id="live-clock">—</span>
+      <button id="refresh-btn" class="icon-btn" title="Refresh all">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+      <a href="admin.html" class="icon-btn" title="Admin">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="home-wrap">
+
+    <!-- Islamic arch frame -->
+    <div class="mosque-section">
+      <div class="arch-wrap" aria-hidden="true">
+        <svg class="arch-svg" viewBox="0 0 600 260" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+          <path d="M45,260 L45,168 Q45,10 300,10 Q555,10 555,168 L555,260 Z" fill="rgba(139,107,61,0.03)"/>
+          <path d="M45,260 L45,168 Q45,10 300,10 Q555,10 555,168 L555,260" fill="none" stroke="rgba(139,107,61,0.45)" stroke-width="1.8"/>
+          <path d="M82,260 L82,180 Q82,52 300,52 Q518,52 518,180 L518,260" fill="none" stroke="rgba(139,107,61,0.2)" stroke-width="1.2"/>
+          <path d="M115,260 L115,192 Q115,88 300,88 Q485,88 485,192 L485,260" fill="none" stroke="rgba(139,107,61,0.1)" stroke-width="1"/>
+          <line x1="300" y1="0" x2="300" y2="10" stroke="rgba(161,93,9,0.7)" stroke-width="2"/>
+          <circle cx="300" cy="10" r="7" fill="rgba(161,93,9,0.12)" stroke="rgba(161,93,9,0.6)" stroke-width="1.5"/>
+          <circle cx="300" cy="10" r="3" fill="rgba(161,93,9,0.5)"/>
+          <circle cx="128" cy="118" r="22" fill="none" stroke="rgba(161,93,9,0.14)" stroke-width="1"/>
+          <circle cx="128" cy="118" r="12" fill="none" stroke="rgba(161,93,9,0.1)" stroke-width="1"/>
+          <circle cx="128" cy="118" r="4"  fill="rgba(161,93,9,0.1)"/>
+          <path d="M128,96 Q135,107 128,118 Q121,107 128,96 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M150,118 Q139,125 128,118 Q139,111 150,118 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M128,140 Q121,129 128,118 Q135,129 128,140 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M106,118 Q117,111 128,118 Q117,125 106,118 Z" fill="rgba(161,93,9,0.07)"/>
+          <circle cx="472" cy="118" r="22" fill="none" stroke="rgba(161,93,9,0.14)" stroke-width="1"/>
+          <circle cx="472" cy="118" r="12" fill="none" stroke="rgba(161,93,9,0.1)" stroke-width="1"/>
+          <circle cx="472" cy="118" r="4"  fill="rgba(161,93,9,0.1)"/>
+          <path d="M472,96 Q479,107 472,118 Q465,107 472,96 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M494,118 Q483,125 472,118 Q483,111 494,118 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M472,140 Q465,129 472,118 Q479,129 472,140 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M450,118 Q461,111 472,118 Q461,125 450,118 Z" fill="rgba(161,93,9,0.07)"/>
+          <path d="M128,74 L129.6,80 L135,77 L131.8,82.2 L138,83.5 L131.8,84.8 L135,90 L129.6,87 L128,93 L126.4,87 L121,90 L124.2,84.8 L118,83.5 L124.2,82.2 L121,77 L126.4,80 Z" fill="none" stroke="rgba(161,93,9,0.18)" stroke-width="0.8"/>
+          <path d="M472,74 L473.6,80 L479,77 L475.8,82.2 L482,83.5 L475.8,84.8 L479,90 L473.6,87 L472,93 L470.4,87 L465,90 L468.2,84.8 L462,83.5 L468.2,82.2 L465,77 L470.4,80 Z" fill="none" stroke="rgba(161,93,9,0.18)" stroke-width="0.8"/>
+          <rect x="30"  y="164" width="30" height="8" rx="2" fill="rgba(139,107,61,0.12)" stroke="rgba(139,107,61,0.28)" stroke-width="1"/>
+          <rect x="540" y="164" width="30" height="8" rx="2" fill="rgba(139,107,61,0.12)" stroke="rgba(139,107,61,0.28)" stroke-width="1"/>
+          <rect x="26"  y="248" width="38" height="10" rx="2" fill="rgba(139,107,61,0.08)" stroke="rgba(139,107,61,0.2)" stroke-width="1"/>
+          <rect x="536" y="248" width="38" height="10" rx="2" fill="rgba(139,107,61,0.08)" stroke="rgba(139,107,61,0.2)" stroke-width="1"/>
+          <line x1="24" y1="259" x2="576" y2="259" stroke="rgba(139,107,61,0.2)" stroke-width="1"/>
+          <line x1="100" y1="196" x2="500" y2="196" stroke="rgba(139,107,61,0.08)" stroke-width="0.8" stroke-dasharray="4,6"/>
+        </svg>
+      </div>
+      <div class="arch-content">
+        <p class="bismillah-text" aria-label="Bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
+        <div class="home-intro">
+          <h1 class="home-intro-title">Next Salah — All Masājid</h1>
+          <p class="home-intro-sub" id="home-date">Loading…</p>
+          <div id="moon-phase" class="moon-phase" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prayer filter tabs -->
+    <div class="prayer-filter-bar" id="prayer-filter-bar">
+      <button class="prayer-filter-btn active" data-prayer="next">Next Salah</button>
+      <button class="prayer-filter-btn" data-prayer="fajr">Fajr <span class="btn-arabic">الفجر</span></button>
+      <button class="prayer-filter-btn" data-prayer="zohr">Zohr <span class="btn-arabic">الظهر</span></button>
+      <button class="prayer-filter-btn" data-prayer="asar">Asr <span class="btn-arabic">العصر</span></button>
+      <button class="prayer-filter-btn" data-prayer="maghrib">Maghrib <span class="btn-arabic">المغرب</span></button>
+      <button class="prayer-filter-btn" data-prayer="esha">Esha <span class="btn-arabic">العشاء</span></button>
+    </div>
+
+    <div id="next-list-wrap">
+      <div class="home-loading">
+        <div class="spinner"></div>
+        <p>Fetching prayer times…</p>
+        <p class="home-loading-sub">Checking all masājid</p>
+      </div>
+    </div>
+
+    <div id="countdown-strip" class="countdown-strip" style="display:none">
+      Next prayer in <strong id="countdown-val">—</strong>
+    </div>
+
+    <div class="home-divider" aria-hidden="true">
+      <svg viewBox="0 0 320 20" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style="width:100%;height:20px">
+        <line x1="0"   y1="10" x2="130" y2="10" stroke="rgba(139,107,61,0.2)" stroke-width="1"/>
+        <path d="M150,3 L156,10 L150,17 L144,10 Z" fill="rgba(139,107,61,0.3)"/>
+        <path d="M160,5 L166,10 L160,15 L154,10 Z" fill="rgba(161,93,9,0.55)"/>
+        <path d="M170,3 L176,10 L170,17 L164,10 Z" fill="rgba(139,107,61,0.3)"/>
+        <line x1="190" y1="10" x2="320" y2="10" stroke="rgba(139,107,61,0.2)" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <div class="home-action-bar">
+      <a href="schedule.html" class="btn-full-schedule">
+        Full Prayer Schedule
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+
+    <p id="home-updated" class="home-updated"></p>
+
+  </div>
+
+  <div class="footer-divider" aria-hidden="true">
+    <svg viewBox="0 0 600 20" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <line x1="0"   y1="10" x2="240" y2="10" stroke="rgba(139,107,61,0.2)" stroke-width="1"/>
+      <path d="M280,3 L286,10 L280,17 L274,10 Z" fill="rgba(139,107,61,0.3)"/>
+      <path d="M300,5 L306,10 L300,15 L294,10 Z" fill="rgba(161,93,9,0.55)"/>
+      <path d="M320,3 L326,10 L320,17 L314,10 Z" fill="rgba(139,107,61,0.3)"/>
+      <line x1="360" y1="10" x2="600" y2="10" stroke="rgba(139,107,61,0.2)" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <footer class="app-footer">
+    <p>All times are Jamaat times</p>
+  </footer>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+    }
+  </script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    const PRAYER_ARABIC_HOME = {
+      fajr: "الفجر", zohr: "الظهر", asar: "العصر", maghrib: "المغرب", esha: "العشاء"
+    };
+    const PRAYERS = ["fajr", "zohr", "asar", "maghrib", "esha"];
+
+    class HomeApp {
+      constructor() {
+        this.todayStr    = localDateStr();
+        const tmw = new Date(); tmw.setDate(tmw.getDate() + 1);
+        this.tomorrowStr = localDateStr(tmw);
+        this.countdownInterval = null;
+        this.nextPrayerTime    = null;
+        this.selectedPrayer    = "next"; // "next" | "fajr" | "zohr" | "asar" | "maghrib" | "esha"
+        this.allResults        = null;   // cached after first fetch — tab switches reuse this
+        this.init();
+      }
+
+      init() {
+        this.startClock();
+        this.updateDateDisplay();
+        this.renderMoonPhase();
+        this.bindFilterTabs();
+        this.loadAll();
+        document.getElementById("refresh-btn").addEventListener("click", () => {
+          MOSQUES.forEach(m => api.clearCache(m.id));
+          this.allResults = null;
+          this.loadAll();
+        });
+      }
+
+      // ── Prayer filter tabs ──────────────────────────────────────────────────
+
+      bindFilterTabs() {
+        document.getElementById("prayer-filter-bar").addEventListener("click", e => {
+          const btn = e.target.closest(".prayer-filter-btn");
+          if (!btn) return;
+          const prayer = btn.dataset.prayer;
+          if (prayer === this.selectedPrayer) return;
+          this.selectedPrayer = prayer;
+          document.querySelectorAll(".prayer-filter-btn").forEach(b =>
+            b.classList.toggle("active", b.dataset.prayer === prayer)
+          );
+          if (this.allResults) this.renderForPrayer();
+        });
+      }
+
+      // ── Clock & date ────────────────────────────────────────────────────────
+
+      startClock() {
+        const tick = () => {
+          const el = document.getElementById("live-clock");
+          if (el) el.textContent = new Date().toLocaleTimeString("en-ZA", {
+            hour: "2-digit", minute: "2-digit", second: "2-digit"
+          });
+        };
+        tick();
+        setInterval(tick, 1000);
+      }
+
+      updateDateDisplay() {
+        const el = document.getElementById("home-date");
+        if (el) el.textContent = new Date().toLocaleDateString("en-ZA", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric"
+        });
+      }
+
+      // ── Moon phase ──────────────────────────────────────────────────────────
+      // Reference new moon: 2000-01-06 18:14 UTC. Synodic month: 29.530588853 days.
+
+      computeMoonPhase() {
+        const refNewMoon = Date.UTC(2000, 0, 6, 18, 14, 0);
+        const synodicMs  = 29.530588853 * 86400000;
+        const ageMs      = ((Date.now() - refNewMoon) % synodicMs + synodicMs) % synodicMs;
+        const phase      = ageMs / synodicMs;                 // 0..1 (0 = new, 0.5 = full)
+        const illum      = (1 - Math.cos(phase * 2 * Math.PI)) / 2; // 0..1 fraction lit
+        const ageDays    = ageMs / 86400000;
+
+        let name;
+        if (ageDays < 1.0) name = "New Moon";
+        else if (ageDays < 6.4)  name = "Waxing Crescent";
+        else if (ageDays < 8.4)  name = "First Quarter";
+        else if (ageDays < 13.8) name = "Waxing Gibbous";
+        else if (ageDays < 15.8) name = "Full Moon";
+        else if (ageDays < 21.1) name = "Waning Gibbous";
+        else if (ageDays < 23.1) name = "Last Quarter";
+        else if (ageDays < 28.5) name = "Waning Crescent";
+        else                     name = "New Moon";
+
+        return { phase, illum, ageDays, name };
+      }
+
+      // Builds an SVG path describing the lit portion of the moon for a given phase.
+      // Outer arc = limb of the disc; inner arc = terminator (an ellipse with
+      // varying horizontal radius). Sweep flags differ per quadrant of the cycle.
+      moonLitPath(r, phase) {
+        const cx = r, cy = r;
+        const cos = Math.cos(phase * 2 * Math.PI);
+        let rx, sweepOuter, sweepInner;
+        if (phase < 0.25) {           // waxing crescent
+          rx = r * cos;          sweepOuter = 1; sweepInner = 1;
+        } else if (phase < 0.5) {     // waxing gibbous
+          rx = -r * cos;         sweepOuter = 1; sweepInner = 0;
+        } else if (phase < 0.75) {    // waning gibbous
+          rx = -r * cos;         sweepOuter = 0; sweepInner = 0;
+        } else {                       // waning crescent
+          rx = r * cos;          sweepOuter = 0; sweepInner = 1;
+        }
+        return `M ${cx},${cy - r} A ${r},${r} 0 1,${sweepOuter} ${cx},${cy + r} A ${Math.abs(rx)},${r} 0 1,${sweepInner} ${cx},${cy - r} Z`;
+      }
+
+      renderMoonPhase() {
+        const el = document.getElementById("moon-phase");
+        if (!el) return;
+        const { phase, illum, name } = this.computeMoonPhase();
+        const r = 11;
+        const d = this.moonLitPath(r, phase);
+        el.innerHTML = `
+          <svg class="moon-phase-svg" viewBox="0 0 ${r * 2} ${r * 2}" aria-hidden="true">
+            <circle class="moon-phase-disc" cx="${r}" cy="${r}" r="${r}"/>
+            <path class="moon-phase-lit" d="${d}"/>
+          </svg>
+          <span class="moon-phase-label">${name}<span class="moon-phase-illum">· ${Math.round(illum * 100)}% lit</span></span>`;
+      }
+
+      // ── Time helpers ────────────────────────────────────────────────────────
+
+      parseTime(timeStr) {
+        const [h, m] = timeStr.split(":").map(Number);
+        const d = new Date(); d.setHours(h, m, 0, 0); return d;
+      }
+
+      normalizeTime(timeStr, prayer) {
+        return api.normalizeTime(timeStr, prayer) || timeStr;
+      }
+
+      sortMinutes(timeStr) {
+        if (!timeStr || timeStr === "—") return 9999;
+        const [h, m] = timeStr.split(":").map(Number);
+        return h * 60 + m;
+      }
+
+      // ── Next-prayer logic (used for "next" tab) ─────────────────────────────
+
+      isFriday(dateStr) {
+        return new Date(dateStr + "T00:00:00").getDay() === 5;
+      }
+
+      jumaJamaat(times) {
+        return times && (times.juma_khutbah || times.juma_adhan) ? (times.juma_khutbah || times.juma_adhan) : null;
+      }
+
+      getNextInfo(times) {
+        const now = new Date();
+        const friday = this.isFriday(this.todayStr);
+        for (const prayer of PRAYERS) {
+          let t = api.getEffectiveTime(times, prayer, this.todayStr);
+          if (friday && prayer === "zohr") {
+            const j = this.jumaJamaat(times);
+            if (j) t = j;
+          }
+          if (t && this.parseTime(t) > now) return { prayer, time: t, tomorrow: false };
+        }
+        const fajr = this.getPrayerTimeForDate(times, "fajr", this.tomorrowStr);
+        return { prayer: "fajr", time: fajr || "—", tomorrow: true };
+      }
+
+      sortKeyNext(info) {
+        if (!info.time || info.time === "—") return 9999;
+        const [h, m] = info.time.split(":").map(Number);
+        return (info.tomorrow ? 1440 : 0) + h * 60 + m;
+      }
+
+      // ── Specific-prayer time for a mosque ──────────────────────────────────
+
+      // Returns the effective jamaat time for a given date, layering next_change
+      // overrides on top of special_times + defaults. Falls back to "—" if unknown.
+      getPrayerTimeForDate(times, prayer, dateStr) {
+        if (!times) return "—";
+        if (prayer === "zohr" && this.isFriday(dateStr)) {
+          const j = this.jumaJamaat(times);
+          if (j) return j;
+        }
+        let t = api.getEffectiveTime(times, prayer, dateStr);
+        const nc = times.next_change;
+        if (nc && Array.isArray(nc.changes)) {
+          const target = new Date(dateStr); target.setHours(0, 0, 0, 0);
+          const applicable = nc.changes
+            .filter(c => c && c.prayer === prayer && c.time)
+            .map(c => ({ time: c.time, when: this._parseChangeDate(c.date) }))
+            .filter(c => c.when && c.when <= target)
+            .sort((a, b) => b.when - a.when)[0];
+          if (applicable) t = api.normalizeTime(applicable.time, prayer) || t;
+        }
+        return t || "—";
+      }
+
+      _parseChangeDate(s) {
+        if (!s) return null;
+        const cleaned = String(s).trim().replace(/\s+\d{1,2}:\d{2}$/, "");
+        const probe = /\d{4}/.test(cleaned) ? cleaned : `${cleaned} ${new Date().getFullYear()}`;
+        const d = new Date(probe);
+        return isNaN(d.getTime()) ? null : d;
+      }
+
+      getPrayerAdhan(times, prayer) {
+        if (prayer === "zohr" && this.isFriday(this.todayStr) && times?.juma_adhan) {
+          return this.normalizeTime(times.juma_adhan, prayer);
+        }
+        if (!times?.adhan) return null;
+        const raw = times.adhan[prayer];
+        return raw ? this.normalizeTime(raw, prayer) : null;
+      }
+
+      // ── Data fetch ──────────────────────────────────────────────────────────
+
+      async loadAll() {
+        const wrap = document.getElementById("next-list-wrap");
+        wrap.innerHTML = `
+          <div class="home-loading">
+            <div class="spinner"></div>
+            <p>Fetching prayer times…</p>
+            <p class="home-loading-sub">Checking all masājid</p>
+          </div>`;
+        document.getElementById("countdown-strip").style.display = "none";
+        clearInterval(this.countdownInterval);
+
+        const results = await Promise.all(
+          MOSQUES.map(async mosque => {
+            try {
+              const times = await api.getTimes(mosque);
+              return { mosque, times };
+            } catch {
+              return { mosque, times: null };
+            }
+          })
+        );
+
+        // Attach next-prayer info to every result
+        results.forEach(r => { r.nextInfo = this.getNextInfo(r.times || {}); });
+
+        // Reference-prayer fallback for mosques whose times defaulted to wrong AM values
+        const todayResults = results.filter(r => !r.nextInfo.tomorrow && r.nextInfo.time !== "—");
+        if (todayResults.length > 0) {
+          const counts = {};
+          todayResults.forEach(r => { counts[r.nextInfo.prayer] = (counts[r.nextInfo.prayer] || 0) + 1; });
+          const referencePrayer = PRAYERS
+            .filter(p => counts[p])
+            .sort((a, b) => (counts[b] || 0) - (counts[a] || 0))[0];
+          const refResult   = todayResults.find(r => r.nextInfo.prayer === referencePrayer);
+          const fallbackTime = refResult ? refResult.nextInfo.time : null;
+
+          results.forEach(r => {
+            if (r.nextInfo.tomorrow && referencePrayer) {
+              const t = r.times
+                ? api.getEffectiveTime(r.times, referencePrayer, this.todayStr)
+                : null;
+              const timeToUse = t || fallbackTime;
+              if (timeToUse) r.nextInfo = { prayer: referencePrayer, time: timeToUse, tomorrow: false };
+            }
+          });
+        }
+
+        this.allResults = results;
+        this.renderForPrayer();
+      }
+
+      // ── Render ──────────────────────────────────────────────────────────────
+
+      renderForPrayer() {
+        if (this.selectedPrayer === "next") {
+          this.renderNext();
+        } else {
+          this.renderSpecific(this.selectedPrayer);
+        }
+      }
+
+      renderNext() {
+        const sorted = [...this.allResults].sort(
+          (a, b) => this.sortKeyNext(a.nextInfo) - this.sortKeyNext(b.nextInfo)
+        );
+
+        // Countdown from earliest upcoming
+        const firstToday = sorted.find(r => !r.nextInfo.tomorrow && r.nextInfo.time !== "—");
+        if (firstToday) {
+          this.nextPrayerTime = this.parseTime(firstToday.nextInfo.time);
+          this.startCountdown();
+        } else {
+          document.getElementById("countdown-strip").style.display = "none";
+        }
+
+        const rows = sorted.map((r, i) => {
+          const { mosque, nextInfo: info } = r;
+          const isFirst     = i === 0 && !info.tomorrow;
+          const prayerLabel = PRAYER_LABELS[info.prayer] || info.prayer;
+          const arabic      = PRAYER_ARABIC_HOME[info.prayer] || "";
+          return `
+            <a class="next-row${isFirst ? " is-first" : ""}${info.tomorrow ? " is-tomorrow" : ""}"
+               href="schedule.html" data-mosque-id="${mosque.id}"
+               aria-label="${mosque.name} — ${prayerLabel} at ${info.time}">
+              <span class="next-row-rank" aria-hidden="true">${i + 1}</span>
+              <div class="next-row-mosque">
+                <div class="next-row-name">${mosque.name}</div>
+                <div class="next-row-prayer">
+                  <span class="next-row-prayer-name">${prayerLabel}</span>
+                  <span class="next-row-prayer-arabic">${arabic}</span>
+                  ${info.tomorrow ? '<span class="next-row-tomorrow-badge">tomorrow</span>' : ""}
+                </div>
+              </div>
+              <span class="next-row-time">${info.time}</span>
+              <span class="next-row-arrow" aria-hidden="true">›</span>
+            </a>`;
+        }).join("");
+
+        this._setList(rows);
+      }
+
+      renderSpecific(prayer) {
+        // Hide countdown — not relevant when browsing a specific prayer
+        document.getElementById("countdown-strip").style.display = "none";
+        clearInterval(this.countdownInterval);
+
+        const now = new Date();
+
+        // Build entries — fall through to tomorrow when today's time has elapsed,
+        // and apply next_change overrides for tomorrow if relevant
+        const entries = this.allResults
+          .map(r => {
+            const todayTime = this.getPrayerTimeForDate(r.times, prayer, this.todayStr);
+            const hasToday  = todayTime && todayTime !== "—";
+            const passed    = hasToday && this.parseTime(todayTime) < now;
+            let time = todayTime, isTomorrow = false;
+            if (!hasToday || passed) {
+              const tmw = this.getPrayerTimeForDate(r.times, prayer, this.tomorrowStr);
+              if (tmw && tmw !== "—") { time = tmw; isTomorrow = true; }
+            }
+            return {
+              mosque: r.mosque,
+              time,
+              isTomorrow,
+              adhan: this.getPrayerAdhan(r.times, prayer),
+            };
+          })
+          .sort((a, b) => {
+            const ka = (a.isTomorrow ? 1440 : 0) + this.sortMinutes(a.time);
+            const kb = (b.isTomorrow ? 1440 : 0) + this.sortMinutes(b.time);
+            return ka - kb;
+          });
+
+        const prayerLabel = PRAYER_LABELS[prayer] || prayer;
+        const arabic      = PRAYER_ARABIC_HOME[prayer] || "";
+
+        // First today-row gets the highlight; if everything is tomorrow, highlight first tomorrow-row
+        const firstTodayIdx = entries.findIndex(e => !e.isTomorrow && e.time && e.time !== "—");
+        const highlightIdx  = firstTodayIdx >= 0 ? firstTodayIdx : entries.findIndex(e => e.time && e.time !== "—");
+
+        const rows = entries.map((e, i) => {
+          const hasTime = e.time && e.time !== "—";
+          return `
+            <a class="next-row${i === highlightIdx && hasTime ? " is-first" : ""}${e.isTomorrow ? " is-tomorrow" : ""}"
+               href="schedule.html" data-mosque-id="${e.mosque.id}"
+               aria-label="${e.mosque.name} — ${prayerLabel}${e.isTomorrow ? " tomorrow" : ""} at ${e.time}">
+              <span class="next-row-rank" aria-hidden="true">${i + 1}</span>
+              <div class="next-row-mosque">
+                <div class="next-row-name">${e.mosque.name}</div>
+                <div class="next-row-prayer">
+                  <span class="next-row-prayer-name">${prayerLabel}</span>
+                  <span class="next-row-prayer-arabic">${arabic}</span>
+                  ${e.isTomorrow ? '<span class="next-row-tomorrow-badge">tomorrow</span>' : ""}
+                </div>
+                ${e.adhan && !e.isTomorrow ? `<div class="next-row-adhan">Adhān ${e.adhan}</div>` : ""}
+              </div>
+              <span class="next-row-time">${hasTime ? e.time : "—"}</span>
+              <span class="next-row-arrow" aria-hidden="true">›</span>
+            </a>`;
+        }).join("");
+
+        this._setList(rows);
+      }
+
+      _setList(rowsHtml) {
+        const wrap = document.getElementById("next-list-wrap");
+        wrap.innerHTML = `<div class="next-list" role="list">${rowsHtml}</div>`;
+        wrap.querySelectorAll(".next-row").forEach(el => {
+          el.addEventListener("click", e => {
+            e.preventDefault();
+            const id = el.dataset.mosqueId;
+            if (id) localStorage.setItem("selectedMosque", id);
+            window.location.href = "schedule.html";
+          });
+        });
+        const el = document.getElementById("home-updated");
+        if (el) el.textContent = "Tap any row to see full details for that masjid";
+      }
+
+      // ── Countdown ───────────────────────────────────────────────────────────
+
+      startCountdown() {
+        const strip = document.getElementById("countdown-strip");
+        const val   = document.getElementById("countdown-val");
+        if (!strip || !val) return;
+        strip.style.display = "";
+        const tick = () => {
+          if (!this.nextPrayerTime) return;
+          const diff = Math.floor((this.nextPrayerTime - new Date()) / 1000);
+          if (diff <= 0) { val.textContent = "Time for prayer"; return; }
+          const h = Math.floor(diff / 3600);
+          const m = Math.floor((diff % 3600) / 60);
+          const s = diff % 60;
+          val.textContent = `${h > 0 ? h + "h " : ""}${m}m ${String(s).padStart(2, "0")}s`;
+        };
+        tick();
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = setInterval(tick, 1000);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => new HomeApp());
+  </script>
+</body>
+</html>

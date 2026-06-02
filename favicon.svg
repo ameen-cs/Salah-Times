@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#FAF6EE"/>
+  <g transform="translate(32 32)">
+    <!-- 8-pointed star: two overlapping squares (classic khatim motif) -->
+    <rect x="-21" y="-21" width="42" height="42" fill="#B8945F"/>
+    <rect x="-21" y="-21" width="42" height="42" transform="rotate(45)" fill="#B8945F"/>
+    <!-- thin dark outline traces both squares for definition -->
+    <g fill="none" stroke="#2A1F18" stroke-width="0.9" stroke-opacity="0.55" stroke-linejoin="round">
+      <rect x="-21" y="-21" width="42" height="42"/>
+      <rect x="-21" y="-21" width="42" height="42" transform="rotate(45)"/>
+    </g>
+    <!-- small central square focal point -->
+    <rect x="-6.5" y="-6.5" width="13" height="13" fill="#2A1F18"/>
+  </g>
+</svg>
