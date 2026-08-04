@@ -72,23 +72,19 @@ class SalahTimesApp {
       el.classList.toggle("active", el.dataset.id === mosqueId);
     });
 
-    this.showLoading();
     const mosque = MOSQUES.find(m => m.id === mosqueId);
     if (!mosque) return;
 
+    // Instant paint from the hardcoded defaults (zero network), then upgrade to
+    // live/cached data the moment it resolves. Avoids a blank loading spinner.
+    this.renderTimes(mosque, mosque.defaults);
+
     const times = await api.getTimes(mosque);
+    // Guard against a race: if the user tapped another mosque while this was
+    // fetching, don't clobber their current selection with stale data.
+    if (this.selectedMosqueId !== mosqueId) return;
     this.currentTimes = times;
     this.renderTimes(mosque, times);
-  }
-
-  showLoading() {
-    document.getElementById("mosque-header").innerHTML = "";
-    document.getElementById("prayer-cards").innerHTML = `
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Loading prayer times…</p>
-      </div>`;
-    document.getElementById("mosque-links").innerHTML = "";
   }
 
   // ── Main render ───────────────────────────────────────────────────────────
@@ -216,6 +212,10 @@ class SalahTimesApp {
             <div class="time-row speaker-row">
               <span class="time-label">Khateeb</span>
               <span class="speaker-name">${times.juma_speaker}</span>
+            </div>` : ""}
+          ${!times.juma_speaker && times.juma_note ? `
+            <div class="time-row juma-note-row">
+              <span class="juma-note">${this._escHtml(times.juma_note)}</span>
             </div>` : ""}
         </div>
       </div>`;
@@ -349,6 +349,11 @@ class SalahTimesApp {
     );
     if (mosque.liveUrl) links.push(
       `<a href="${mosque.liveUrl}" target="_blank" rel="noopener" class="link-btn live-link">Live Stream</a>`
+    );
+    const mapsUrl = mosque.mapsUrl
+      || (mosque.mapsQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mosque.mapsQuery)}` : null);
+    if (mapsUrl) links.push(
+      `<a href="${mapsUrl}" target="_blank" rel="noopener" class="link-btn directions-link">Directions</a>`
     );
     return links.length ? `<div class="links-row">${links.join("")}</div>` : "";
   }

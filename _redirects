@@ -1,3 +1,9 @@
+# Same-origin CORS proxy for live board data (query string is forwarded automatically)
+/api/proxy   /.netlify/functions/proxy   200
+
+# Health check for uptime monitoring (UptimeRobot) — 200 when live data is flowing, 503 when not
+/api/health  /.netlify/functions/health  200
+
 # Map legacy/variant Apple touch icon paths that iOS probes automatically
 # to the single real icon, so they return 200 instead of 404.
 /apple-touch-icon.png                        /logo.png   200

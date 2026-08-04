@@ -41,7 +41,6 @@ A few cross-cutting details:
 | Path | Purpose |
 |------|---------|
 | [index.html](index.html) | Home — "Next Salah, all masajid" with filter tabs, countdown, moon phase |
-| [home.html](home.html) | Alternate next-prayer view |
 | [schedule.html](schedule.html) | Full daily schedule for a selected masjid |
 | [admin.html](admin.html) | Password-protected manual time editor |
 | [404.html](404.html) | Not-found page |

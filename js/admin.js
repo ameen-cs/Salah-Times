@@ -2,6 +2,7 @@ class AdminPanel {
   constructor() {
     this.authenticated = sessionStorage.getItem("adminAuth") === "true";
     this.editingMosqueId = null;
+    this.dbRows = {};   // {[mosque_id]: row} — what's actually stored in Supabase
     this.init();
   }
 
@@ -16,11 +17,40 @@ class AdminPanel {
     document.getElementById("dashboard-section").style.display = "none";
   }
 
-  showDashboard() {
+  async showDashboard() {
     document.getElementById("login-section").style.display = "none";
     document.getElementById("dashboard-section").style.display = "block";
     this.renderMosqueTable();
+    await this.loadDbRows();   // pull the live rows, then re-render with real values
+    this.renderMosqueTable();
     this.checkDbTable();
+  }
+
+  // The table and the edit modal used to read `mosque.defaults` — the hardcoded
+  // config — so saved times were invisible here and it looked like nothing saved.
+  // Load the actual rows once and render from those instead.
+  async loadDbRows() {
+    const rows = await db.query(TABLE_NAME, {});
+    if (!rows) return;
+    this.dbRows = {};
+    for (const r of rows) this.dbRows[r.mosque_id] = r;
+  }
+
+  // Effective view of a masjid: DB row where a value exists, config default otherwise.
+  effective(mosque) {
+    const d = mosque.defaults || {};
+    const r = this.dbRows[mosque.id];
+    if (!r) return { ...d, adhan: d.adhan || {}, special_times: d.special_times || {}, _fromDb: false };
+    const pick = (key) => (r[key] != null && r[key] !== "") ? r[key] : (d[key] ?? null);
+    return {
+      fajr: pick("fajr"), zohr: pick("zohr"), asar: pick("asar"),
+      maghrib: pick("maghrib"), esha: pick("esha"),
+      juma_khutbah: pick("juma_khutbah"),
+      juma_speaker: r.juma_speaker || null,
+      adhan: r.adhan || d.adhan || {},
+      special_times: r.special_times || d.special_times || {},
+      _fromDb: true
+    };
   }
 
   async checkDbTable() {
@@ -78,28 +108,38 @@ class AdminPanel {
 
   renderMosqueTable() {
     const tbody = document.getElementById("mosque-tbody");
-    tbody.innerHTML = MOSQUES.map(m => `
+    tbody.innerHTML = MOSQUES.map(m => {
+      const e = this.effective(m);
+      const badge = e._fromDb
+        ? ""
+        : ` <span title="No database row yet — showing config defaults" style="font-size:0.7rem;opacity:0.6">(default)</span>`;
+      return `
       <tr>
-        <td><strong>${m.name}</strong></td>
-        <td>${m.defaults.fajr || "—"}</td>
-        <td>${m.defaults.zohr || "—"}</td>
-        <td>${m.defaults.asar || "—"}</td>
-        <td>${m.defaults.esha || "—"}</td>
-        <td>${m.defaults.juma_khutbah || "—"}</td>
+        <td><strong>${m.name}</strong>${badge}</td>
+        <td>${e.fajr || "—"}</td>
+        <td>${e.zohr || "—"}</td>
+        <td>${e.asar || "—"}</td>
+        <td>${e.esha || "—"}</td>
+        <td>${e.juma_khutbah || "—"}</td>
         <td>
           <button class="btn-sm btn-edit" onclick="admin.openEditModal('${m.id}')">Edit</button>
           <button class="btn-sm btn-save" onclick="admin.saveToDb('${m.id}')">Save to DB</button>
         </td>
-      </tr>
-    `).join("");
+      </tr>`;
+    }).join("");
   }
 
-  openEditModal(mosqueId) {
+  // Reads the stored row (falling back to config defaults) so the form shows what
+  // is actually live, not what config.js happens to contain.
+  async openEditModal(mosqueId) {
     const mosque = MOSQUES.find(m => m.id === mosqueId);
     if (!mosque) return;
     this.editingMosqueId = mosqueId;
-    const d = mosque.defaults;
 
+    const fresh = await db.query(TABLE_NAME, { mosque_id: mosqueId });
+    if (fresh && fresh[0]) this.dbRows[mosqueId] = fresh[0];
+
+    const d = this.effective(mosque);
     const adhan = d.adhan || {};
     document.getElementById("edit-mosque-name").textContent = mosque.name;
     document.getElementById("edit-fajr").value = d.fajr || "";
@@ -108,6 +148,7 @@ class AdminPanel {
     document.getElementById("edit-maghrib").value = d.maghrib || "";
     document.getElementById("edit-esha").value = d.esha || "";
     document.getElementById("edit-juma").value = d.juma_khutbah || "";
+    document.getElementById("edit-speaker").value = d.juma_speaker || "";
     document.getElementById("edit-adhan-fajr").value = adhan.fajr || "";
     document.getElementById("edit-adhan-zohr").value = adhan.zohr || "";
     document.getElementById("edit-adhan-asar").value = adhan.asar || "";
@@ -146,15 +187,20 @@ class AdminPanel {
       maghrib: document.getElementById("edit-maghrib").value || null,
       esha: document.getElementById("edit-esha").value || null,
       juma_khutbah: document.getElementById("edit-juma").value || null,
+      juma_speaker: document.getElementById("edit-speaker").value.trim() || null,
       adhan,
       special_times,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // Mark as admin-set so the live api-sync won't overwrite the Khateeb
+      updated_by: "admin"
     };
 
     const result = await db.upsert(TABLE_NAME, data);
     if (result) {
       api.clearCache(mosque.id);
-      mosque.defaults = { ...data, adhan, special_times };
+      // Track the saved row rather than mutating config.js in memory, so the table
+      // reflects the database and a page reload shows the same thing.
+      this.dbRows[mosque.id] = { ...data };
       this.showAlert("edit-alert", "Saved successfully to database!", "success");
       setTimeout(() => document.getElementById("edit-modal").style.display = "none", 1200);
       this.renderMosqueTable();
@@ -163,11 +209,13 @@ class AdminPanel {
     }
   }
 
-  async saveToDb(mosqueId) {
-    const mosque = MOSQUES.find(m => m.id === mosqueId);
-    if (!mosque) return;
-    const d = mosque.defaults;
-    const result = await db.upsert(TABLE_NAME, {
+  // Writes the row shown in the table. That's the stored row where one exists and
+  // the config default otherwise — so this seeds new masājid without stomping an
+  // existing admin edit with stale config values.
+  _rowPayload(mosque) {
+    const d = this.effective(mosque);
+    const existing = this.dbRows[mosque.id];
+    return {
       mosque_id: mosque.id,
       mosque_name: mosque.name,
       fajr: d.fajr, zohr: d.zohr, asar: d.asar,
@@ -175,11 +223,23 @@ class AdminPanel {
       juma_khutbah: d.juma_khutbah,
       adhan: d.adhan || {},
       special_times: d.special_times || {},
-      updated_at: new Date().toISOString()
-    });
+      updated_at: new Date().toISOString(),
+      // Preserve the admin marker — dropping it would silently disable the row's
+      // override for mirror masājid (see api.js `_applyDbOverrides`).
+      ...(existing?.updated_by ? { updated_by: existing.updated_by } : {})
+    };
+  }
+
+  async saveToDb(mosqueId) {
+    const mosque = MOSQUES.find(m => m.id === mosqueId);
+    if (!mosque) return;
+    const payload = this._rowPayload(mosque);
+    const result = await db.upsert(TABLE_NAME, payload);
     if (result) {
+      this.dbRows[mosque.id] = { ...this.dbRows[mosque.id], ...payload };
       this.showAlert("table-alert", `${mosque.name} saved to database.`, "success");
       api.clearCache(mosqueId);
+      this.renderMosqueTable();
     } else {
       this.showAlert("table-alert", "Failed to save. Check database connection.", "error");
     }
@@ -188,18 +248,12 @@ class AdminPanel {
   async saveAllToDb() {
     let success = 0, fail = 0;
     for (const mosque of MOSQUES) {
-      const d = mosque.defaults;
-      const result = await db.upsert(TABLE_NAME, {
-        mosque_id: mosque.id, mosque_name: mosque.name,
-        fajr: d.fajr, zohr: d.zohr, asar: d.asar,
-        maghrib: d.maghrib, esha: d.esha,
-        juma_khutbah: d.juma_khutbah,
-        adhan: d.adhan || {},
-        special_times: d.special_times || {},
-        updated_at: new Date().toISOString()
-      });
+      const payload = this._rowPayload(mosque);
+      const result = await db.upsert(TABLE_NAME, payload);
+      if (result) this.dbRows[mosque.id] = { ...this.dbRows[mosque.id], ...payload };
       result ? success++ : fail++;
     }
+    this.renderMosqueTable();
     this.showAlert("table-alert",
       fail === 0 ? `All ${success} mosques saved to database!` : `Saved ${success}, failed ${fail}.`,
       fail === 0 ? "success" : "error"
@@ -313,16 +367,19 @@ class AdminPanel {
         r.name.toLowerCase().includes(m.shortName.toLowerCase())
       );
       if (!mosque) continue;
-      const result = await db.upsert(TABLE_NAME, {
+      const payload = {
         mosque_id: mosque.id, mosque_name: mosque.name,
         fajr: r.fajr, zohr: r.zohr, asar: r.asar,
         maghrib: r.maghrib, esha: r.esha,
         juma_khutbah: r.juma_khutbah,
         special_times: r.special_times,
-        updated_at: new Date().toISOString()
-      });
+        updated_at: new Date().toISOString(),
+        // Pasted times are a deliberate edit, so they outrank a mirrored source
+        updated_by: "admin"
+      };
+      const result = await db.upsert(TABLE_NAME, payload);
       if (result) {
-        mosque.defaults = { ...mosque.defaults, ...r };
+        this.dbRows[mosque.id] = { ...this.dbRows[mosque.id], ...payload };
         api.clearCache(mosque.id);
         saved++;
       }

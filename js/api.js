@@ -21,12 +21,45 @@ const TIMEOUT_API  = 5000;                  // board.php — short, it often fai
 const TIMEOUT_HTML = 9000;                  // premium HTML — longer, usually works
 const SHARED_MAG_KEY = "salah_shared_mag";
 const SHARED_MAG_TTL = 12 * 60 * 60 * 1000; // 12 hours — Maghrib shifts ~1 min/day
+const DB_OVERRIDE_TTL = 5 * 60 * 1000;      // 5 minutes — admin edits should surface quickly
+
+// CORS proxy: our own same-origin Netlify Function (netlify/functions/proxy.js),
+// which fetches the boards server-side and re-serves them with CORS headers.
+// We deliberately keep this a single, reliable, dependency-free proxy. The old
+// public proxies (codetabs, allorigins, cors.lol) were flaky — rate-limiting and
+// throwing CORS errors on every losing race (e.g. premium-HTML probes for boards
+// that have no premium page), which only spammed the console without adding any
+// real resilience. For local development use `netlify dev` so /api/proxy exists.
+// Each entry takes a raw target URL and returns a proxied one.
+const PROXIES = [
+  t => `/api/proxy?url=${encodeURIComponent(t)}`,
+];
 
 class SalahTimesAPI {
   constructor() {
-    this.mem = {};   // in-memory cache {[mosqueId]: {data, timestamp}}
-    // Proactively load Jamia — populates shared Maghrib + reference prayer for all mosques
+    this.mem = {};          // in-memory cache {[mosqueId]: {data, timestamp}}
+    this.overrides = {};    // {[mosqueId]: speaker} — admin-set Khateeb, wins over live
+    this.dbOverrides = {};  // {[mosqueId]: {row, timestamp}} — admin-edited rows for mirror masājid
+    this._inflight = {};    // {[mosqueId]: Promise} — collapses concurrent cold fetches into one
+    // Load manual Khateeb overrides, then probe Jamia (shared Maghrib + reference prayer)
+    this._loadOverrides();
     this._probeJamia();
+  }
+
+  // Manually-entered Khateeb names (updated_by = "admin") take priority over the
+  // live board value and are never clobbered by the api-sync. Loaded once at startup.
+  async _loadOverrides() {
+    try {
+      const rows = await db.query(TABLE_NAME, { updated_by: "admin" });
+      if (!rows) return;
+      const map = {};
+      for (const r of rows) if (r.juma_speaker) map[r.mosque_id] = r.juma_speaker;
+      this.overrides = map;
+    } catch { /* non-fatal — overrides are a backstop */ }
+  }
+
+  _applyOverride(mosqueId, data) {
+    if (data && this.overrides[mosqueId]) data.juma_speaker = this.overrides[mosqueId];
   }
 
   // ── Public entry point ───────────────────────────────────────────────────
@@ -38,11 +71,25 @@ class SalahTimesAPI {
         ? MOSQUES.find(m => m.id === mosque.mirrorOf)
         : null;
       if (source) {
-        const data = await this.getTimes(source);
-        // Clone before stripping so we never mutate the source's cached object
+        const src = await this.getTimes(source);
+        // Clone before altering so we never mutate the source's cached object
+        const data = { ...src };
         if (mosque.omitJuma) {
-          return { ...data, juma_adhan: null, juma_khutbah: null, juma_sunan: null, juma_speaker: null };
+          data.juma_adhan = data.juma_khutbah = data.juma_sunan = data.juma_speaker = null;
         }
+        // Per-prayer overrides — this mosque keeps its own times for some prayers
+        if (mosque.timeOverrides) {
+          data.adhan = { ...(data.adhan || {}) };
+          data.special_times = { ...(data.special_times || {}) };
+          for (const [prayer, o] of Object.entries(mosque.timeOverrides)) {
+            if (o.jamaat != null) data[prayer] = o.jamaat;
+            if (o.adhan != null) data.adhan[prayer] = o.adhan;
+            // Drop any inherited day/date special so the override always wins
+            delete data.special_times[prayer];
+          }
+        }
+        // Admin-panel edits rank above both the mirror and the config overrides
+        await this._applyDbOverrides(mosque, data);
         return data;
       }
     }
@@ -53,6 +100,7 @@ class SalahTimesAPI {
     const mem = this.mem[id];
     if (mem && Date.now() - mem.timestamp < MEM_TTL) {
       this._applySharedMaghrib(mem.data);
+      this._applyOverride(id, mem.data);
       return mem.data;
     }
 
@@ -62,6 +110,7 @@ class SalahTimesAPI {
       this._bgRefresh(mosque);   // fire-and-forget
       this._memSet(id, ls.data, ls.timestamp);
       this._applySharedMaghrib(ls.data);
+      this._applyOverride(id, ls.data);
       return ls.data;
     }
 
@@ -69,7 +118,18 @@ class SalahTimesAPI {
     return this._fetchAndCache(mosque);
   }
 
+  // Dedup wrapper: on a cold start the same mosque is requested several times at
+  // once (direct load + mirror delegation + Jamia probe). Without this each one
+  // fires its own proxy round-trip; here they all await a single shared fetch.
   async _fetchAndCache(mosque) {
+    const id = mosque.id;
+    if (this._inflight[id]) return this._inflight[id];
+    const p = this._doFetchAndCache(mosque).finally(() => { delete this._inflight[id]; });
+    this._inflight[id] = p;
+    return p;
+  }
+
+  async _doFetchAndCache(mosque) {
     const id = mosque.id;
     let data = null;
 
@@ -99,6 +159,7 @@ class SalahTimesAPI {
       this._applySharedMaghrib(data);
     }
 
+    this._applyOverride(id, data);
     this._memSet(id, data);
     this._lsWrite(id, data);
     return data;
@@ -113,17 +174,20 @@ class SalahTimesAPI {
     if (!data.special_times || !Object.keys(data.special_times).length) {
       data.special_times = mosque.defaults.special_times || {};
     }
+    this._saveToSupabase(mosque, data);
+    this._applyOverride(mosque.id, data);
     this._memSet(mosque.id, data);
     this._lsWrite(mosque.id, data);
-    this._saveToSupabase(mosque, data);
   }
 
   clearCache(mosqueId) {
     if (mosqueId) {
       delete this.mem[mosqueId];
+      delete this.dbOverrides[mosqueId];
       this._lsDel(mosqueId);
     } else {
       this.mem = {};
+      this.dbOverrides = {};
       Object.keys(localStorage)
         .filter(k => k.startsWith(LS_PREFIX))
         .forEach(k => localStorage.removeItem(k));
@@ -215,21 +279,22 @@ class SalahTimesAPI {
 
   async _fetchBoardApi(boardId) {
     if (!boardId) return null;
-    const proxied = `https://api.codetabs.com/v1/proxy?quest=https://masjidboardlive.com/boards/api/board.php%3F${boardId}`;
-    try {
-      const res = await fetch(proxied, { signal: AbortSignal.timeout(TIMEOUT_API) });
-      if (!res.ok) { console.warn("[BAPI]", res.status); return null; }
-      const json = await res.json();
-      if (!json || typeof json !== "object") return null;
-      // board.php wraps the payload in {data: {...}} — older deployments returned the fields at root
-      const root = json.data && typeof json.data === "object" ? json.data : json;
-      const result = this._normalizeBoardApi(root);
-      if (result) console.log("[BAPI] OK:", boardId);
-      return result;
-    } catch (e) {
-      console.warn("[BAPI] fail:", e.message?.slice(0, 50));
-      return null;
+    const target = `https://masjidboardlive.com/boards/api/board.php?${boardId}`;
+    for (const proxy of PROXIES) {
+      try {
+        const res = await fetch(proxy(target), { signal: AbortSignal.timeout(TIMEOUT_API) });
+        if (!res.ok) { console.warn("[BAPI]", res.status); continue; }
+        const json = await res.json();
+        if (!json || typeof json !== "object") continue;
+        // board.php wraps the payload in {data: {...}} — older deployments returned the fields at root
+        const root = json.data && typeof json.data === "object" ? json.data : json;
+        const result = this._normalizeBoardApi(root);
+        if (result) { console.log("[BAPI] OK:", boardId); return result; }
+      } catch (e) {
+        console.warn("[BAPI] fail:", e.message?.slice(0, 50));
+      }
     }
+    return null;
   }
 
   _normalizeBoardApi(d) {
@@ -252,11 +317,19 @@ class SalahTimesAPI {
       esha:    t(d.eshaAthan),
     };
 
-    const juma_adhan   = t(d.jumuahTime1);
-    const juma_khutbah = t(d.jumuahTime2);
-    const rawSpeaker   = String(d.jumuah_khateeb ?? "").trim();
-    const isNameLike   = s => s && s.length > 2 && !/^\d|^enter|^please|^tbc|^tba/i.test(s);
-    const juma_speaker = isNameLike(rawSpeaker) ? rawSpeaker : null;
+    // board.php exposes up to three Jumu'ah times: jumuahTime1/2/3. When all three
+    // are present they are Adhān / Sunan / Khutbah (jumuahHeadings "0,3,6"). When
+    // only two are present there is no Sunan, so the second value is the Khutbah.
+    // (Previously jumuahTime2 was read as the Khutbah, which surfaced the Sunan
+    // time on three-time boards and dropped the real Khutbah in jumuahTime3.)
+    const jt1 = t(d.jumuahTime1);
+    const jt2 = t(d.jumuahTime2);
+    const jt3 = t(d.jumuahTime3);
+    const juma_adhan   = jt1;
+    const juma_sunan   = jt3 ? jt2 : null;
+    const juma_khutbah = jt3 || jt2;
+    const juma_speaker = this._cleanSpeaker(d.jumuah_khateeb);
+    const juma_note    = this._jumaNote(d.jumuah_khateeb);
 
     const early_zohr = t(d.dhuhrJamaah2) || t(d.earlyDhuhr) || null;
 
@@ -280,7 +353,7 @@ class SalahTimesAPI {
     return {
       fajr, zohr, asar, maghrib, esha,
       adhan,
-      juma_adhan, juma_khutbah, juma_sunan: null, juma_speaker,
+      juma_adhan, juma_khutbah, juma_sunan, juma_speaker, juma_note,
       early_zohr,
       next_change,
       extended_times,
@@ -330,19 +403,21 @@ class SalahTimesAPI {
 
   async _fetchPremiumHtml(boardId) {
     if (!boardId) return null;
-    const urls = [
-      `https://api.codetabs.com/v1/proxy?quest=https://premium.masjidboardlive.com/v2/index.php%3Fmid%3D${boardId}`,
-      `https://api.codetabs.com/v1/proxy?quest=https://premium.masjidboardlive.com/v2/%3Fmid%3D${boardId}`,
+    const targets = [
+      `https://premium.masjidboardlive.com/v2/index.php?mid=${boardId}`,
+      `https://premium.masjidboardlive.com/v2/?mid=${boardId}`,
     ];
-    for (const url of urls) {
-      try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_HTML) });
-        if (!res.ok) continue;
-        const html = await res.text();
-        if (!html.includes("let theInfo")) continue;
-        const result = this._parseBoard(html);
-        if (result) { console.log("[MBL] OK:", boardId); return result; }
-      } catch { /* try next */ }
+    for (const target of targets) {
+      for (const proxy of PROXIES) {
+        try {
+          const res = await fetch(proxy(target), { signal: AbortSignal.timeout(TIMEOUT_HTML) });
+          if (!res.ok) continue;
+          const html = await res.text();
+          if (!html.includes("let theInfo")) continue;
+          const result = this._parseBoard(html);
+          if (result) { console.log("[MBL] OK:", boardId); return result; }
+        } catch { /* try next proxy / url */ }
+      }
     }
     return null;
   }
@@ -400,8 +475,8 @@ class SalahTimesAPI {
     const juma_adhan   = clean(jumaRow[1]);
     const juma_sunan   = clean(jumaRow[3]);
     const juma_khutbah = clean(jumaRow[5]);
-    const rawSpeaker   = String(jumaRow[6] ?? "").trim();
-    const juma_speaker = (!isTime(rawSpeaker) && rawSpeaker) ? rawSpeaker : null;
+    const juma_speaker = this._cleanSpeaker(jumaRow[6]);
+    const juma_note    = this._jumaNote(jumaRow[6]);
 
     let next_change = null;
     for (let i = 0; i < changeRow.length; i++) {
@@ -438,7 +513,7 @@ class SalahTimesAPI {
       fajr: fajr_jamaat, zohr: zohr_jamaat, asar: asr_jamaat,
       maghrib: magh_jamaat, esha: esha_jamaat,
       adhan: { fajr: fajr_adhan, zohr: zohr_adhan, asar: asr_adhan, maghrib: magh_adhan, esha: esha_adhan },
-      juma_adhan, juma_khutbah, juma_sunan, juma_speaker,
+      juma_adhan, juma_khutbah, juma_sunan, juma_speaker, juma_note,
       early_zohr: alt_zohr,
       next_change, extended_times,
       announcements: announcements.length ? announcements : null,
@@ -451,22 +526,47 @@ class SalahTimesAPI {
     return h * 60 + (m || 0);
   }
 
+  // The Khateeb slot on the boards is free-text and often holds notes rather than a
+  // name ("No Jumu'ah Salaah", "Lecture straight after adhān", "Sunnats immediately
+  // before khutbah", "TBC"). Keep only values that look like an actual person's name.
+  _cleanSpeaker(raw) {
+    const s = String(raw ?? "").trim();
+    if (!s || s.length < 3 || s.length > 40) return null;
+    if (/^\d|^enter|^please|^tbc|^tba/i.test(s)) return null;
+    // Reject note-like phrases (prayer/instruction words a name would never contain)
+    if (/khutbah|adh[aā]n|sal[aā]h|lecture|sunnat|before|after|immediately|jumu/i.test(s)) return null;
+    if (s.split(/\s+/).length > 4) return null;
+    return s;
+  }
+
+  // The same Khateeb slot, when it ISN'T a person's name, usually holds a short
+  // instructional note the masjid wants displayed ("Lecture straight after adhān",
+  // "Sunnats immediately before khutbah", "TBC"). Surface those as a Jumu'ah note.
+  // Returns null for an actual name (shown as Khateeb instead) or empty/placeholder text.
+  _jumaNote(raw) {
+    const s = String(raw ?? "").trim();
+    if (!s || s.length > 80) return null;
+    if (/^[~\-–—.\s]+$/.test(s)) return null;   // placeholder rows like "~~~~" or "----"
+    if (this._cleanSpeaker(s)) return null;      // it's a name → not a note
+    return s;
+  }
+
   // ── Custom site scraper (mosques that run their own site, no board) ──────────
 
   async _fetchScraped(url) {
     if (!url) return null;
-    const proxied = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-    try {
-      const res = await fetch(proxied, { signal: AbortSignal.timeout(TIMEOUT_HTML) });
-      if (!res.ok) { console.warn("[SCRAPE]", res.status); return null; }
-      const html = await res.text();
-      const result = this._parseChakaskraal(html);
-      if (result) console.log("[SCRAPE] OK:", url);
-      return result;
-    } catch (e) {
-      console.warn("[SCRAPE] fail:", e.message?.slice(0, 50));
-      return null;
+    for (const proxy of PROXIES) {
+      try {
+        const res = await fetch(proxy(url), { signal: AbortSignal.timeout(TIMEOUT_HTML) });
+        if (!res.ok) { console.warn("[SCRAPE]", res.status); continue; }
+        const html = await res.text();
+        const result = this._parseChakaskraal(html);
+        if (result) { console.log("[SCRAPE] OK:", url); return result; }
+      } catch (e) {
+        console.warn("[SCRAPE] fail:", e.message?.slice(0, 50));
+      }
     }
+    return null;
   }
 
   // Parses chakaskraalmusjid.co.za — times are server-rendered for the current
@@ -532,7 +632,7 @@ class SalahTimesAPI {
       fajr: fajr.jamaat, zohr: zuhr.jamaat, asar: asr.jamaat,
       maghrib: magh.jamaat, esha: esha.jamaat,
       adhan,
-      juma_adhan: juma.adhan, juma_khutbah: juma.jamaat, juma_sunan: null, juma_speaker: null,
+      juma_adhan: juma.adhan, juma_khutbah: juma.jamaat, juma_sunan: null, juma_speaker: null, juma_note: null,
       early_zohr: null,
       next_change: null,
       extended_times: Object.keys(ext).length ? ext : null,
@@ -581,6 +681,7 @@ class SalahTimesAPI {
       juma_adhan:     r.juma_adhan     || null,
       juma_sunan:     r.juma_sunan     || null,
       juma_speaker:   r.juma_speaker   || null,
+      juma_note:      r.juma_note      || null,
       early_zohr:     r.early_zohr     || null,
       next_change:    r.next_change    || null,
       extended_times: r.extended_times || null,
@@ -591,7 +692,80 @@ class SalahTimesAPI {
     };
   }
 
+  // Mirror masājid have no board of their own, but the admin panel can still set
+  // their times in Supabase. A row saved from the Edit modal (updated_by="admin")
+  // wins over the mirrored source prayer by prayer; anything left blank keeps
+  // tracking the source board — notably Maghrib, which shifts with sunset daily.
+  //
+  // Only "admin" rows count. The "Save to DB" buttons and the api-sync also write
+  // rows, but those just echo config defaults / another masjid's live times, and
+  // treating them as overrides would pin the mirror to stale values forever.
+  async _applyDbOverrides(mosque, data) {
+    const row = await this._getAdminRow(mosque.id);
+    if (!row) return;
+
+    const adhan      = { ...(data.adhan || {}) };
+    const special    = { ...(data.special_times || {}) };
+    const rowAdhan   = row.adhan || {};
+    const rowSpecial = row.special_times || {};
+
+    for (const prayer of ["fajr", "zohr", "asar", "maghrib", "esha"]) {
+      if (this._isValidTime(row[prayer])) {
+        data[prayer] = row[prayer];
+        // Drop the mirrored day/date special so the admin value always wins,
+        // unless the admin supplied their own special for this prayer below.
+        delete special[prayer];
+      }
+      if (this._isValidTime(rowAdhan[prayer])) {
+        // Adhān is rendered raw, so convert 12-h shorthand ("1:00" → "13:00") here
+        adhan[prayer] = this.normalizeTime(rowAdhan[prayer], prayer);
+      }
+      if (rowSpecial[prayer] && Object.keys(rowSpecial[prayer]).length) {
+        special[prayer] = rowSpecial[prayer];
+      }
+    }
+
+    // omitJuma masājid hold no Jumu'ah at all — don't let a stray DB value revive it
+    if (!mosque.omitJuma) {
+      if (this._isValidTime(row.juma_khutbah)) data.juma_khutbah = row.juma_khutbah;
+      if (row.juma_speaker) data.juma_speaker = row.juma_speaker;
+    }
+
+    data.adhan         = adhan;
+    data.special_times = special;
+    data.source        = "admin";
+  }
+
+  async _getAdminRow(mosqueId) {
+    const hit = this.dbOverrides[mosqueId];
+    if (hit && Date.now() - hit.timestamp < DB_OVERRIDE_TTL) return hit.row;
+    let rows;
+    try {
+      rows = await db.query(TABLE_NAME, { mosque_id: mosqueId, updated_by: "admin" });
+    } catch { return hit?.row ?? null; }
+    // db.query returns null on a failed request and [] when there's simply no row —
+    // only cache the latter, so a network blip keeps serving the last known values.
+    if (rows === null) return hit?.row ?? null;
+    const row = rows[0] || null;
+    this.dbOverrides[mosqueId] = { row, timestamp: Date.now() };
+    return row;
+  }
+
   async _saveToSupabase(mosque, data) {
+    // A manually-set Khateeb (updated_by = "admin") wins and must survive the sync.
+    // Read the row's current marker first so a stale tab can't clobber a fresh admin
+    // edit, and keep this.overrides in sync so display picks up the lock immediately.
+    let locked = null;
+    try {
+      const rows = await db.query(TABLE_NAME, { mosque_id: mosque.id });
+      const existing = rows && rows[0];
+      if (existing && existing.updated_by === "admin" && existing.juma_speaker) {
+        locked = existing.juma_speaker;
+        this.overrides[mosque.id] = locked;
+      } else {
+        delete this.overrides[mosque.id];
+      }
+    } catch { /* fall through — no lock detected */ }
     try {
       await db.upsert(TABLE_NAME, {
         mosque_id:      mosque.id,
@@ -605,14 +779,14 @@ class SalahTimesAPI {
         juma_khutbah:   data.juma_khutbah   || null,
         juma_adhan:     data.juma_adhan     || null,
         juma_sunan:     data.juma_sunan     || null,
-        juma_speaker:   data.juma_speaker   || null,
+        juma_speaker:   locked || data.juma_speaker || null,
         early_zohr:     data.early_zohr     || null,
         next_change:    data.next_change    || null,
         extended_times: data.extended_times || null,
         announcements:  data.announcements  || null,
         special_times:  mosque.defaults.special_times || {},
         updated_at:     new Date().toISOString(),
-        updated_by:     "api-sync"
+        updated_by:     locked ? "admin" : "api-sync"
       }, "mosque_id");
     } catch { /* silent — DB is a fallback only */ }
   }

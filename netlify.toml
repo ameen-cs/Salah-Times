@@ -1,0 +1,8 @@
+# Static site served from the repo root, plus the serverless CORS proxy in
+# netlify/functions. The /api/proxy → function rewrite lives in _redirects.
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

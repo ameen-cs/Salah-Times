@@ -338,6 +338,41 @@
       margin-top: 1rem;
     }
 
+    /* ── Live-update status pill ── */
+    .load-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      margin: 0.75rem auto 0;
+      font-size: 0.76rem;
+      color: var(--text-faint);
+      transition: opacity 0.4s;
+    }
+
+    .load-status[hidden] { display: none; }
+    .load-status.is-done { color: var(--green); }
+
+    .load-status-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .load-status.is-done .load-status-spinner {
+      border: none;
+      animation: none;
+      width: auto;
+      height: auto;
+    }
+
+    /* Refresh icon spins while a load is in flight */
+    .icon-btn.is-loading svg { animation: spin 0.8s linear infinite; }
+
     /* ── Divider ornament (reuse footer-divider style) ── */
     .home-divider {
       margin: 1.25rem auto 0;
@@ -409,7 +444,7 @@
 
   <!-- Arabic calligraphy background (decorative) -->
   <div class="calligraphy-bg" aria-hidden="true" role="presentation">
-    <span class="cal-1">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</span>
+    <span class="cal-1">بسم الله الرحمن الرحيم</span>
     <span class="cal-2">الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ</span>
     <span class="cal-3">لَا إِلَٰهَ إِلَّا ٱللَّهُ</span>
     <span class="cal-4">اللَّهُ أَكْبَرُ</span>
@@ -478,7 +513,7 @@
         </svg>
       </div>
       <div class="arch-content">
-        <p class="bismillah-text" aria-label="Bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
+        <p class="bismillah-text" aria-label="Bismillah">بسم الله الرحمن الرحيم</p>
         <div class="home-intro">
           <h1 class="home-intro-title">Next Salah — All Masājid</h1>
           <p class="home-intro-sub" id="home-date">Loading…</p>
@@ -495,6 +530,11 @@
       <button class="prayer-filter-btn" data-prayer="asar">Asr <span class="btn-arabic">العصر</span></button>
       <button class="prayer-filter-btn" data-prayer="maghrib">Maghrib <span class="btn-arabic">المغرب</span></button>
       <button class="prayer-filter-btn" data-prayer="esha">Esha <span class="btn-arabic">العشاء</span></button>
+    </div>
+
+    <div id="load-status" class="load-status" aria-live="polite" hidden>
+      <span class="load-status-spinner" aria-hidden="true"></span>
+      <span class="load-status-text">Updating live times…</span>
     </div>
 
     <div id="next-list-wrap">
@@ -769,32 +809,79 @@
       // ── Data fetch ──────────────────────────────────────────────────────────
 
       async loadAll() {
-        const wrap = document.getElementById("next-list-wrap");
-        wrap.innerHTML = `
-          <div class="home-loading">
-            <div class="spinner"></div>
-            <p>Fetching prayer times…</p>
-            <p class="home-loading-sub">Checking all masājid</p>
-          </div>`;
-        document.getElementById("countdown-strip").style.display = "none";
         clearInterval(this.countdownInterval);
 
-        const results = await Promise.all(
-          MOSQUES.map(async mosque => {
+        // ── Instant first paint ──────────────────────────────────────────────
+        // Render straight from the hardcoded defaults with zero network so the
+        // list (and active tab) is on screen immediately. `results` is indexed by
+        // mosque order; each entry is then upgraded in place as its live (or
+        // cached) data resolves below, re-rendering the current tab each time.
+        const results = MOSQUES.map(mosque => ({ mosque, times: mosque.defaults }));
+        this.allResults = this._decorate(results);
+        this.renderForPrayer();
+
+        // ── Upgrade each row as real data arrives ────────────────────────────
+        // A small status pill shows progress so the user knows the times on screen
+        // are still being confirmed against the live boards, and when they're final.
+        let done = 0;
+        const total = MOSQUES.length;
+        this._setLoadStatus("loading", done, total);
+        await Promise.all(
+          MOSQUES.map(async (mosque, i) => {
             try {
-              const times = await api.getTimes(mosque);
-              return { mosque, times };
+              results[i] = { mosque, times: await api.getTimes(mosque) };
             } catch {
-              return { mosque, times: null };
+              // keep the default row already on screen
             }
+            done++;
+            this.allResults = this._decorate(results);
+            this.renderForPrayer();
+            this._setLoadStatus("loading", done, total);
           })
         );
+        this._setLoadStatus("done");
+      }
 
-        // Attach next-prayer info to every result
-        results.forEach(r => { r.nextInfo = this.getNextInfo(r.times || {}); });
+      // Small live-update indicator. state "loading" shows a spinner + n/total;
+      // state "done" shows a brief "up to date" confirmation that then fades out.
+      _setLoadStatus(state, done = 0, total = 0) {
+        const el = document.getElementById("load-status");
+        if (!el) return;
+        const refresh = document.getElementById("refresh-btn");
+        const spin = el.querySelector(".load-status-spinner");
+        const txt  = el.querySelector(".load-status-text");
+        clearTimeout(this._loadStatusTimer);
 
-        // Reference-prayer fallback for mosques whose times defaulted to wrong AM values
-        const todayResults = results.filter(r => !r.nextInfo.tomorrow && r.nextInfo.time !== "—");
+        if (state === "loading") {
+          el.hidden = false;
+          el.style.opacity = "1";
+          el.classList.remove("is-done");
+          if (spin) spin.textContent = "";
+          if (refresh) refresh.classList.add("is-loading");
+          if (txt) txt.textContent = total ? `Updating live times… ${done}/${total}` : "Updating live times…";
+          return;
+        }
+
+        // state === "done"
+        if (refresh) refresh.classList.remove("is-loading");
+        el.classList.add("is-done");
+        if (spin) spin.textContent = "✓";
+        const stamp = new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
+        if (txt) txt.textContent = `All times up to date · ${stamp}`;
+        this._loadStatusTimer = setTimeout(() => {
+          el.style.opacity = "0";
+          this._loadStatusTimer = setTimeout(() => { el.hidden = true; }, 450);
+        }, 2500);
+      }
+
+      // Attaches next-prayer info to each result and applies the reference-prayer
+      // fallback (mosques whose own times default to wrong AM values borrow the
+      // current prayer period from working mosques). Returns a fresh array so a
+      // partial/in-flight `results` is never mutated underneath the render.
+      _decorate(results) {
+        const decorated = results.map(r => ({ ...r, nextInfo: this.getNextInfo(r.times || {}) }));
+
+        const todayResults = decorated.filter(r => !r.nextInfo.tomorrow && r.nextInfo.time !== "—");
         if (todayResults.length > 0) {
           const counts = {};
           todayResults.forEach(r => { counts[r.nextInfo.prayer] = (counts[r.nextInfo.prayer] || 0) + 1; });
@@ -804,7 +891,7 @@
           const refResult   = todayResults.find(r => r.nextInfo.prayer === referencePrayer);
           const fallbackTime = refResult ? refResult.nextInfo.time : null;
 
-          results.forEach(r => {
+          decorated.forEach(r => {
             if (r.nextInfo.tomorrow && referencePrayer) {
               const t = r.times
                 ? api.getEffectiveTime(r.times, referencePrayer, this.todayStr)
@@ -815,8 +902,7 @@
           });
         }
 
-        this.allResults = results;
-        this.renderForPrayer();
+        return decorated;
       }
 
       // ── Render ──────────────────────────────────────────────────────────────
