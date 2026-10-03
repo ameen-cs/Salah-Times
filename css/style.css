@@ -285,6 +285,37 @@ body {
   text-align: center;
 }
 
+/* ── Mosque watermark (home hero arch) ───────────────────────────────────
+   The masjid's own logo, desaturated and multiplied into the cream backdrop
+   so it fills the arch like an engraved motif rather than a pasted-on badge.
+   Sized to the arch's inner curve and masked so it fades out before reaching
+   the title/date text pinned to the bottom of the arch. */
+.hero-logo-layer {
+  grid-area: cell;
+  z-index: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2% 5% 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* max-height is capped to match .arch-svg's own height at each breakpoint
+   below, so the watermark can never grow the arch section taller than the
+   arch art itself — only widen/fill within it. */
+.hero-logo {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 280px;
+  opacity: 0.3;
+  filter: grayscale(1) sepia(0.55) saturate(2.2) hue-rotate(-8deg) brightness(0.95) contrast(0.95);
+  mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(ellipse 96% 96% at 50% 42%, #000 62%, transparent 97%);
+          mask-image: radial-gradient(ellipse 96% 96% at 50% 42%, #000 62%, transparent 97%);
+}
+
 /* ── Bismillah ── */
 .bismillah-text {
   font-family: "Amiri", serif;
@@ -447,6 +478,16 @@ body {
   background: #FBF3E0;
   border-color: #D4B98A;
   box-shadow: 0 0 0 1px rgba(139,107,61,0.12), var(--card-shadow);
+  animation: next-prayer-flash 2.2s ease-in-out infinite;
+}
+
+@keyframes next-prayer-flash {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(139,107,61,0.12), var(--card-shadow); }
+  50%      { box-shadow: 0 0 0 3px rgba(139,107,61,0.4), 0 4px 22px rgba(139,107,61,0.3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prayer-card.next-prayer { animation: none; }
 }
 
 .prayer-card.next-prayer::before {
@@ -479,26 +520,26 @@ body {
 .card-meta { flex: 1; min-width: 0; }
 
 .prayer-name {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--text-faint);
+  color: var(--text-muted);
   line-height: 1;
 }
 
-.prayer-card.next-prayer .prayer-name { color: var(--green); }
-.prayer-card.juma-card   .prayer-name { color: var(--gold); }
+.prayer-card.next-prayer .prayer-name { color: var(--green-dim); }
+.prayer-card.juma-card   .prayer-name { color: var(--gold-dim); }
 
 /* Arabic prayer name label */
 .prayer-name-arabic {
   font-family: "Amiri", serif;
-  font-size: 0.82rem;
-  color: var(--text-faint);
+  font-size: 0.92rem;
+  color: var(--text-subtle);
   display: block;
   margin-top: 0.1rem;
   line-height: 1.2;
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .prayer-card.next-prayer .prayer-name-arabic { color: rgba(139,107,61,0.6); opacity: 1; }
@@ -546,26 +587,26 @@ body {
 .time-row + .time-row { border-top: 1px solid rgba(226,224,216,0.7); }
 
 .time-label {
-  font-size: 0.56rem;
+  font-size: 0.64rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
-.prayer-card.next-prayer .time-label { color: rgba(139,107,61,0.5); }
-.prayer-card.juma-card   .time-label { color: rgba(139,90,43,0.5); }
+.prayer-card.next-prayer .time-label { color: rgba(111,85,48,0.75); }
+.prayer-card.juma-card   .time-label { color: rgba(107,69,32,0.75); }
 
 .adhan-time {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-subtle);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
 .jamaat-time {
-  font-size: 1.6rem;
+  font-size: 1.75rem;
   font-weight: 800;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -602,8 +643,8 @@ body {
 .juma-full .time-row:last-child { border-right: none; }
 .juma-full .time-row + .time-row { border-top: none; }
 
-.juma-full .jamaat-time { font-size: 1.35rem; }
-.juma-full .adhan-time  { font-size: 1.05rem; }
+.juma-full .jamaat-time { font-size: 1.55rem; }
+.juma-full .adhan-time  { font-size: 1.15rem; }
 
 .speaker-row {
   flex-direction: column !important;
@@ -615,9 +656,9 @@ body {
 
 .speaker-name {
   font-family: "Amiri", serif;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--gold-dim);
   font-style: italic;
   margin-top: 0.1rem;
 }
@@ -635,9 +676,9 @@ body {
 }
 
 .juma-note {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-style: italic;
-  color: rgba(139,90,43,0.72);
+  color: var(--gold-dim);
   line-height: 1.35;
 }
 
@@ -685,22 +726,24 @@ body {
 .link-btn:active { transform: scale(0.97); }
 
 .board-link {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.live-link {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.directions-link {
   background: var(--surface3);
   color: var(--text-muted);
   border-color: var(--border2);
 }
 
-.live-link {
-  background: #fef2f2;
-  color: #b91c1c;
-  border-color: #fca5a5;
-}
-
-.directions-link {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #93c5fd;
-}
+.link-btn svg { flex-shrink: 0; }
 
 /* ─────────────────────────────────────────
    INFO SECTIONS (shared)
@@ -804,9 +847,9 @@ body {
 .change-time-item:last-child { border-right: none; }
 
 .change-simple-time {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
   font-weight: 800;
-  color: var(--gold);
+  color: var(--gold-dim);
   font-variant-numeric: tabular-nums;
   padding: 0.75rem 0.875rem;
   text-align: center;
@@ -815,9 +858,9 @@ body {
 
 .change-simple-prayer {
   display: inline-block;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--green);
+  color: var(--green-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-right: 0.5rem;
@@ -838,41 +881,41 @@ body {
 }
 .change-list-item:first-child { border-top: none; }
 .change-list-prayer {
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 700;
-  color: var(--green);
+  color: var(--green-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   min-width: 4.5rem;
 }
 .change-list-date {
   flex: 1;
-  font-size: 0.75rem;
-  color: var(--text-faint);
+  font-size: 0.8rem;
+  color: var(--text-muted);
   font-weight: 500;
 }
 .change-list-time {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   font-weight: 800;
-  color: var(--gold);
+  color: var(--gold-dim);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   margin-left: auto;
 }
 
 .change-time-label {
-  font-size: 0.55rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-bottom: 0.25rem;
 }
 
 .change-time-value {
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   font-weight: 800;
-  color: var(--gold);
+  color: var(--gold-dim);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
@@ -1059,6 +1102,7 @@ details[open] .extended-summary { border-bottom: 1px solid var(--border); }
 
   /* ── Arch ── */
   .arch-svg { min-height: 140px; max-height: 210px; }
+  .hero-logo { max-height: 200px; }
   .arch-content { padding: 0 max(0.875rem, 10%) 0.875rem; }
   .bismillah-text { font-size: 0.85rem; margin-bottom: 0.35rem; }
 
@@ -1078,11 +1122,11 @@ details[open] .extended-summary { border-bottom: 1px solid var(--border); }
   .card-header { padding: 0.6rem 0.75rem 0.45rem; }
   .card-times  { padding: 0.35rem 0.75rem 0.55rem; }
 
-  .prayer-name       { font-size: 0.55rem; }
-  .prayer-name-arabic{ font-size: 0.7rem; }
-  .time-label        { font-size: 0.5rem; }
-  .adhan-time        { font-size: 0.82rem; }
-  .jamaat-time       { font-size: 1.45rem; }
+  .prayer-name       { font-size: 0.64rem; }
+  .prayer-name-arabic{ font-size: 0.8rem; }
+  .time-label        { font-size: 0.58rem; }
+  .adhan-time        { font-size: 0.92rem; }
+  .jamaat-time       { font-size: 1.6rem; }
 
   /* ── Special chips ── */
   .special-chip { font-size: 0.6rem; padding: 0.1rem 0.4rem; }
@@ -1103,8 +1147,8 @@ details[open] .extended-summary { border-bottom: 1px solid var(--border); }
    RESPONSIVE: EXTRA SMALL PHONES ≤ 360px
    ───────────────────────────────────────── */
 @media (max-width: 360px) {
-  .jamaat-time { font-size: 1.25rem; }
-  .adhan-time  { font-size: 0.75rem; }
+  .jamaat-time { font-size: 1.4rem; }
+  .adhan-time  { font-size: 0.85rem; }
   .card-header { padding: 0.5rem 0.6rem 0.35rem; }
   .card-times  { padding: 0.3rem 0.6rem 0.45rem; }
   .mosque-tab  { font-size: 0.68rem; padding: 0.22rem 0.55rem; }
@@ -1122,9 +1166,9 @@ details[open] .extended-summary { border-bottom: 1px solid var(--border); }
 
   .mosque-title { font-size: clamp(1.7rem, 4vw, 2rem); }
 
-  .jamaat-time { font-size: 1.75rem; }
+  .jamaat-time { font-size: 1.9rem; }
 
-  .juma-full .jamaat-time { font-size: 1.5rem; }
+  .juma-full .jamaat-time { font-size: 1.65rem; }
 }
 
 /* ─────────────────────────────────────────
@@ -1204,12 +1248,13 @@ details[open] .extended-summary { border-bottom: 1px solid var(--border); }
   .arch-content { padding: 0 max(2rem, 14%) 1.5rem; }
 
   .arch-svg { min-height: 220px; max-height: 340px; }
+  .hero-logo { max-height: 330px; }
 
   .mosque-title { font-size: 2rem; }
 
-  .jamaat-time { font-size: 1.9rem; }
+  .jamaat-time { font-size: 2.05rem; }
 
-  .juma-full .jamaat-time { font-size: 1.6rem; }
+  .juma-full .jamaat-time { font-size: 1.75rem; }
 
   .ext-times-grid { grid-template-columns: repeat(3, 1fr); }
   .change-times-grid { grid-template-columns: repeat(5, 1fr); }

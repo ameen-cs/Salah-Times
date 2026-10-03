@@ -151,13 +151,7 @@ class SalahTimesAPI {
       data.special_times = mosque.defaults.special_times || {};
     }
 
-    // Save Maghrib to shared store so all mosques benefit, or fill from shared
-    if (this._isValidTime(data.maghrib)) {
-      this._saveMaghrib(data.maghrib, data.adhan?.maghrib);
-    } else {
-      data.maghrib = null; // strip invalid strings like "After Adhān"
-      this._applySharedMaghrib(data);
-    }
+    this._reconcileMaghrib(data);
 
     this._applyOverride(id, data);
     this._memSet(id, data);
@@ -174,6 +168,7 @@ class SalahTimesAPI {
     if (!data.special_times || !Object.keys(data.special_times).length) {
       data.special_times = mosque.defaults.special_times || {};
     }
+    this._reconcileMaghrib(data);
     this._saveToSupabase(mosque, data);
     this._applyOverride(mosque.id, data);
     this._memSet(mosque.id, data);
@@ -256,8 +251,11 @@ class SalahTimesAPI {
     const d = new Date(); d.setHours(h, m, 0, 0); return d;
   }
 
-  // ── Live fetch — board.php and premium HTML in PARALLEL ─────────────────
+  // ── Live fetch — board.php and premium HTML in PARALLEL, then free board ────
 
+  // Always resolves; null means "no live source answered" and the caller falls
+  // back to the database. It must never reject, or one dead board would take the
+  // whole card down instead of degrading to stored times.
   async _fetchLive(boardId) {
     // Race both sources concurrently; return first non-null result
     const rejectNull = async (p) => {
@@ -270,9 +268,13 @@ class SalahTimesAPI {
         rejectNull(this._fetchBoardApi(boardId)),
         rejectNull(this._fetchPremiumHtml(boardId)),
       ]);
-    } catch {
-      return null;
-    }
+    } catch { /* neither primary source answered — try the free board below */ }
+
+    // Free-tier masājid have no premium page at all, so this is their only live
+    // source. Kept out of the race above so the richer premium payload always
+    // wins where it exists; it also now covers a premium outage for everyone else.
+    try { return await this._fetchFreeBoardHtml(boardId); }
+    catch { return null; }
   }
 
   // ── board.php JSON API ───────────────────────────────────────────────────
@@ -460,6 +462,8 @@ class SalahTimesAPI {
       if (Array.isArray(row) && row[0] === "Masjid Announcement") { annRow = row; break; }
     }
 
+    const hijri_date = this._extractHijriDate(ti);
+
     const fajr_adhan   = clean(timesRow[0]);
     const fajr_jamaat  = clean(timesRow[1]);
     const zohr_adhan   = clean(timesRow[2]);
@@ -478,13 +482,25 @@ class SalahTimesAPI {
     const juma_speaker = this._cleanSpeaker(jumaRow[6]);
     const juma_note    = this._jumaNote(jumaRow[6]);
 
-    let next_change = null;
-    for (let i = 0; i < changeRow.length; i++) {
-      if (isDate(changeRow[i])) {
-        const t = clean(changeRow[i + 1]) || clean(changeRow[i - 1]);
-        if (t) { next_change = { date: String(changeRow[i]), time: t }; break; }
+    // changeRow packs three [date, time, unixMs] triplets — Fajr, Asr, Esha, in
+    // that order — not a single change. The old code stopped at the first date it
+    // saw, so only Fajr ever reached the page; Asr's (and Esha's, when set) never
+    // did. A prayer with nothing upcoming reports its date as "–", which isDate()
+    // correctly rejects.
+    const next_change = (() => {
+      const now = Date.now(); // changeRow's unix stamps are milliseconds, unlike board.php's seconds
+      const changes = [];
+      for (const [prayer, i] of [["fajr", 0], ["asar", 3], ["esha", 6]]) {
+        const dateStr = changeRow[i];
+        const t = clean(changeRow[i + 1]);
+        if (!isDate(dateStr) || !t) continue;
+        const unix = Number(changeRow[i + 2]) || 0;
+        if (unix && unix <= now) continue;
+        changes.push({ prayer, date: String(dateStr), time: t });
       }
-    }
+      if (!changes.length) return null;
+      return { date: changes[0].date, prayer: changes[0].prayer, time: changes[0].time, changes };
+    })();
 
     let extended_times = null;
     if (extRow.length >= 25) {
@@ -515,10 +531,34 @@ class SalahTimesAPI {
       adhan: { fajr: fajr_adhan, zohr: zohr_adhan, asar: asr_adhan, maghrib: magh_adhan, esha: esha_adhan },
       juma_adhan, juma_khutbah, juma_sunan, juma_speaker, juma_note,
       early_zohr: alt_zohr,
-      next_change, extended_times,
+      next_change, extended_times, hijri_date,
       announcements: announcements.length ? announcements : null,
       source: "api"
     };
+  }
+
+  // The board's "Show Islamic Time Ticker" row carries the Hijri date the masjid's
+  // own board displays (day/month-number/year, with the year in Arabic-Indic
+  // digits) — the same value shown on their physical board — so surface it as-is
+  // instead of computing our own via Intl, which can land a day off from what a
+  // masjid actually announces.
+  _extractHijriDate(ti) {
+    const HIJRI_MONTHS = [
+      "Muharram", "Safar", "Rabi' al-Awwal", "Rabi' al-Thani",
+      "Jumada al-Ula", "Jumada al-Thani", "Rajab", "Sha'ban",
+      "Ramadan", "Shawwal", "Dhu'l-Qi'dah", "Dhu'l-Hijjah",
+    ];
+    const toLatinDigits = s => String(s ?? "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+
+    const row = ti.find(r => Array.isArray(r) && r[18] === "Show Islamic Time Ticker");
+    if (!row) return null;
+
+    const day   = parseInt(toLatinDigits(row[7]), 10);
+    const month = parseInt(toLatinDigits(row[6]), 10);
+    const year  = parseInt(toLatinDigits(row[5]), 10);
+    if (!day || !month || !year || month < 1 || month > 12) return null;
+
+    return `${day} ${HIJRI_MONTHS[month - 1]} ${year}`;
   }
 
   _toMinutes(timeStr) {
@@ -549,6 +589,111 @@ class SalahTimesAPI {
     if (/^[~\-–—.\s]+$/.test(s)) return null;   // placeholder rows like "~~~~" or "----"
     if (this._cleanSpeaker(s)) return null;      // it's a name → not a note
     return s;
+  }
+
+  // ── Free-tier board page (masjidboardlive.com/boards/) ───────────────────
+  //
+  // Masājid on the platform's free tier have no premium page — their premium URL
+  // answers HTTP 200 with a styled "This masjid does not exist" body — so
+  // board.php was their only machine-readable source. That endpoint now 404s
+  // platform-wide, which left Munawwar, Manor and Blythedale with no live source
+  // at all, silently falling through to stale database rows.
+  //
+  // The free board page still server-renders today's times, into elements whose
+  // ids are the very field names board.php used (fajrJamaah, zuhrAthan,
+  // jumuahTime1 …). So we scrape it back into that flat shape and hand it to the
+  // existing _normalizeBoardApi, rather than duplicating the Jumu'ah, next-change
+  // and Adhān rules in a second normaliser that could drift out of step.
+  async _fetchFreeBoardHtml(boardId) {
+    if (!boardId) return null;
+    const target = `https://masjidboardlive.com/boards/?${boardId}`;
+    for (const proxy of PROXIES) {
+      try {
+        const res = await fetch(proxy(target), { signal: AbortSignal.timeout(TIMEOUT_HTML) });
+        if (!res.ok) { console.warn("[FREE]", res.status); continue; }
+        const fields = this._scrapeFreeBoard(await res.text());
+        if (!fields) continue;
+        const result = this._normalizeBoardApi(fields);
+        if (result) { console.log("[FREE] OK:", boardId); return result; }
+      } catch (e) {
+        console.warn("[FREE] fail:", e.message?.slice(0, 50));
+      }
+    }
+    return null;
+  }
+
+  // Reads the free board's DOM into the flat field shape _normalizeBoardApi expects.
+  _scrapeFreeBoard(html) {
+    let doc;
+    try { doc = new DOMParser().parseFromString(html, "text/html"); }
+    catch { return null; }
+    if (!doc) return null;
+
+    // Unset slots render as &nbsp;, which trim() strips to "" — _normalizeBoardApi's
+    // own isTime check then nulls them, exactly as it did for board.php blanks.
+    const txt = id => {
+      const el = doc.getElementById(id);
+      return el ? el.textContent.trim() : null;
+    };
+
+    const zuhrJamaah = txt("zuhrJamaah");
+    const sundayZuhr = txt("sundayDhuhr");
+
+    const fields = {
+      fajrAthan:    txt("fajrAthan"),    fajrJamaah:    txt("fajrJamaah"),
+      dhuhrAthan:   txt("zuhrAthan"),    dhuhrJamaah:   zuhrJamaah,
+      asrAthan:     txt("asrAthan"),     asrJamaah:     txt("asrJamaah"),
+      maghribAthan: txt("maghribAthan"), maghribJamaah: txt("maghribJamaah"),
+      eshaAthan:    txt("eshaAthan"),    eshaJamaah:    txt("eshaJamaah"),
+
+      jumuahTime1: txt("jumuahTime1"),
+      jumuahTime2: txt("jumuahTime2"),
+      jumuahTime3: txt("jumuahTime3"),
+      jumuah_khateeb: txt("jumuahKhateeb"),
+
+      // The "Zuhr Iqamah" row is the Sunday / public-holiday Zuhr. Only treat it as
+      // the alternate time when it actually differs from the daily one — the same
+      // guard the premium parser applies to its own alt-Zohr slot.
+      dhuhrJamaah2: (sundayZuhr && sundayZuhr !== zuhrJamaah) ? sundayZuhr : null,
+
+      sehriEnds: txt("sehriEnds"), fajrStarts: txt("fajrStarts"),
+      sunrise:   txt("sunrise"),   ishraaq:    txt("ishraaq"),
+      duha:      txt("duha"),      istiwa:     txt("istiwa"),
+      asrShafi:  txt("asrShafi"),  asrHanafi:  txt("asrHanafi"),
+      sunset:    txt("sunset"),
+    };
+
+    // No Fajr Iqāmah element → not a board page (error page, or the layout moved).
+    // Returning null lets the caller fall through to the database rather than
+    // publishing a half-empty board as if it were live.
+    if (!fields.fajrJamaah) return null;
+
+    // The change table carries only Fajr, Asr and Esha, as dates like
+    // "25 Aug 2026 00:00". board.php paired each with a unix stamp that
+    // _extractNextChangeBoardApi filters future-vs-past on, so derive that stamp here.
+    for (const p of ["fajr", "asr", "esha"]) {
+      const date = txt(`${p}NextDate`);
+      fields[`${p}NextDate`]   = date;
+      fields[`${p}NextTime`]   = txt(`${p}NextTime`);
+      fields[`${p}ChangeUnix`] = this._parseBoardDateSec(date);
+    }
+
+    return fields;
+  }
+
+  // "25 Aug 2026 00:00" → epoch seconds. Parsed explicitly rather than through
+  // Date.parse, whose handling of this non-ISO format is engine-dependent. Blank
+  // or unrecognised values yield 0, which _extractNextChangeBoardApi skips as
+  // "no upcoming change" — better than guessing a date onto a prayer board.
+  _parseBoardDateSec(dateStr) {
+    const m = /^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/
+      .exec(String(dateStr ?? "").trim());
+    if (!m) return 0;
+    const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+    const mi = months.indexOf(m[2].slice(0, 3).toLowerCase());
+    if (mi === -1) return 0;
+    const d = new Date(Number(m[3]), mi, Number(m[1]), Number(m[4] || 0), Number(m[5] || 0), 0, 0);
+    return Math.floor(d.getTime() / 1000);
   }
 
   // ── Custom site scraper (mosques that run their own site, no board) ──────────
@@ -792,6 +937,19 @@ class SalahTimesAPI {
   }
 
   // ── Shared Maghrib — same sunset time for the whole area ────────────────
+
+  // Normalize before validating/sharing — Chakaskraal's site renders Maghrib as
+  // bare "5:41" (unlike its other prayers), which would otherwise broadcast an
+  // un-normalized value to every mosque relying on the shared store.
+  _reconcileMaghrib(data) {
+    data.maghrib = this.normalizeTime(data.maghrib, "maghrib");
+    if (this._isValidTime(data.maghrib)) {
+      this._saveMaghrib(data.maghrib, data.adhan?.maghrib);
+    } else {
+      data.maghrib = null; // strip invalid strings like "After Adhān"
+      this._applySharedMaghrib(data);
+    }
+  }
 
   _saveMaghrib(time, adhanTime) {
     if (!time) return;

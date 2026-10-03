@@ -78,17 +78,28 @@
       padding: 0.4rem 0 0.25rem;
     }
 
+    /* Overrides schedule.html's gold Bismillah — here it sits directly over
+       the filled-arch logo watermark, so it needs the same black + halo
+       treatment as the title/date to stay readable. */
+    .bismillah-text {
+      color: var(--text);
+      opacity: 1;
+      text-shadow: 0 1px 2px rgba(250,246,238,0.95), 0 0 12px rgba(250,246,238,0.9);
+    }
+
     .home-intro-title {
       font-size: clamp(1.1rem, 3vw, 1.35rem);
       font-weight: 700;
-      color: var(--green);
+      color: var(--text);
       letter-spacing: 0.01em;
+      text-shadow: 0 1px 2px rgba(250,246,238,0.95), 0 0 14px rgba(250,246,238,0.9);
     }
 
     .home-intro-sub {
       font-size: 0.82rem;
-      color: var(--text-faint);
+      color: var(--text);
       margin-top: 0.3rem;
+      text-shadow: 0 1px 2px rgba(250,246,238,0.95), 0 0 12px rgba(250,246,238,0.9);
     }
 
     /* ── Moon phase glyph ── */
@@ -96,25 +107,26 @@
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      margin-top: 0.5rem;
+      margin-top: 0.6rem;
       padding: 0.2rem 0.7rem 0.2rem 0.4rem;
-      border: 1px solid var(--border);
+      border: 1px solid rgba(139,107,61,0.14);
       border-radius: 999px;
-      background: var(--surface);
+      background: rgba(255,255,255,0.55);
       font-size: 0.72rem;
       color: var(--text-muted);
       font-weight: 500;
       letter-spacing: 0.01em;
     }
     .moon-phase-svg {
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       flex-shrink: 0;
       /* Southern Hemisphere: moon limb flipped vs. Northern */
       transform: scaleX(-1);
     }
     .moon-phase-disc {
-      fill: #1a1a1f;
+      fill: var(--text);
+      opacity: 0.9;
     }
     .moon-phase-lit {
       fill: #E8D4AA;
@@ -388,7 +400,7 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       padding: 0.1rem 0 0.75rem;
-      margin-top: -0.25rem;
+      margin-top: 0.15rem;
     }
     .prayer-filter-bar::-webkit-scrollbar { display: none; }
 
@@ -419,6 +431,7 @@
       background: #2A1F18;
       border-color: #2A1F18;
       color: #E8D4AA;
+      box-shadow: 0 2px 8px rgba(42,31,24,0.22);
     }
     .prayer-filter-btn .btn-arabic {
       font-family: "Amiri", serif;
@@ -511,6 +524,9 @@
           <line x1="24" y1="259" x2="576" y2="259" stroke="rgba(139,107,61,0.2)" stroke-width="1"/>
           <line x1="100" y1="196" x2="500" y2="196" stroke="rgba(139,107,61,0.08)" stroke-width="0.8" stroke-dasharray="4,6"/>
         </svg>
+      </div>
+      <div class="hero-logo-layer" aria-hidden="true">
+        <img class="hero-logo" src="/jamia-logo.jpeg" alt="">
       </div>
       <div class="arch-content">
         <p class="bismillah-text" aria-label="Bismillah">بسم الله الرحمن الرحيم</p>
