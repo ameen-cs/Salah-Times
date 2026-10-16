@@ -6,3 +6,7 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+
+# The scheduled sync loads the site's own config/parser scripts at runtime
+[functions."sync-times"]
+  included_files = ["js/config.js", "js/supabase-client.js", "js/api.js"]

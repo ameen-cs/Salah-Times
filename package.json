@@ -1,0 +1,8 @@
+{
+  "name": "salah-times",
+  "private": true,
+  "description": "Salah Times site + Netlify functions",
+  "dependencies": {
+    "linkedom": "0.18.5"
+  }
+}

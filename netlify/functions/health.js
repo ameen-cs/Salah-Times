@@ -12,9 +12,10 @@
 // "down". So a single monitor on this URL covers both "the site is down" and
 // "live data isn't being pulled".
 //
-// This checks live-source REACHABILITY, not Supabase freshness. Since there is no
-// scheduled refresh, Supabase naturally goes stale on zero-traffic days even when
-// everything is healthy, so alerting on that would be a false alarm.
+// This checks live-source REACHABILITY, not Supabase freshness. The scheduled
+// sync-times function refreshes Supabase 3x daily, but a missed run is not a site
+// outage, so alerting on row age here would be a false alarm; check that
+// function's log in Netlify instead.
 //
 // The app draws on two independent source families, each serving a DIFFERENT set
 // of masājid, so we probe both and fail if either dies. The previous version

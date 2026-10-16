@@ -1,7 +1,7 @@
 // Static assets use stale-while-revalidate (see fetch handler), so content
 // edits propagate within one reload without a version bump. Only bump
 // CACHE_VERSION if you need to force-purge every old cache at once.
-const CACHE_VERSION = "salah-v3";
+const CACHE_VERSION = "salah-v4";
 
 const SHELL = [
   "/",

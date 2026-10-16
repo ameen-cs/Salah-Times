@@ -724,16 +724,32 @@ class SalahTimesAPI {
 
     const isTime = s => /^\d{1,2}:\d{2}$/.test(String(s ?? "").trim());
 
-    // Each prayer box has two .box-time values: [0] = Azaan, [1] = Salaah/Jamaat
-    const grab = (cls) => {
+    // Current MasjidScreen layout: every value is tagged data-field="<prayer>_athaan|_salaah".
+    // The same field can also sit on a wrapper/hidden checker, so take the first element
+    // whose text is a plain HH:MM.
+    const field = (name) => {
+      for (const e of doc.querySelectorAll(`[data-field="${name}"]`)) {
+        const v = e.textContent.trim();
+        if (isTime(v)) return v;
+      }
+      return null;
+    };
+    const grabField = (p) => ({ adhan: field(`${p}_athaan`), jamaat: field(`${p}_salaah`) });
+
+    // Legacy layout: each .float-box.<Prayer> has two .box-time values: [0] = Azaan, [1] = Salaah
+    const grabLegacy = (cls) => {
       const box = doc.querySelector(`.float-box.${cls}`);
       if (!box) return { adhan: null, jamaat: null };
       const t = [...box.querySelectorAll(".box-time")].map(e => e.textContent.trim());
       return { adhan: isTime(t[0]) ? t[0] : null, jamaat: isTime(t[1]) ? t[1] : null };
     };
+    const grab = (p, cls) => {
+      const r = grabField(p);
+      return r.jamaat ? r : grabLegacy(cls);
+    };
 
-    const fajr = grab("Fajr"), zuhr = grab("Zuhr"), asr = grab("Asr"),
-          magh = grab("Maghrib"), esha = grab("Esha"), juma = grab("Jumuah");
+    const fajr = grab("fajr", "Fajr"), zuhr = grab("zuhr", "Zuhr"), asr = grab("asr", "Asr"),
+          magh = grab("magrib", "Maghrib"), esha = grab("esha", "Esha"), juma = grab("jummah", "Jumuah");
 
     // No Fajr Jamaat parsed → layout changed or junk response; fall through to next source
     if (!fajr.jamaat) return null;
@@ -756,16 +772,16 @@ class SalahTimesAPI {
       if (title && isTime(time)) grey[title] = time;
     });
     const ext = {
-      suhur_end: grey["sehri ends"],
-      sunrise:   grey["sunrise"],
-      ishraq:    grey["ishraaq"],
-      zawwal:    grey["zawwal"],
+      suhur_end: field("sehri_end")          || grey["sehri ends"],
+      sunrise:   field("sunrise")            || grey["sunrise"],
+      ishraq:    field("ishraaq_effective")  || grey["ishraaq"],
+      zawwal:    field("zawal")              || grey["zawwal"],
     };
     Object.keys(ext).forEach(k => { if (!ext[k]) delete ext[k]; });
 
     // Notice: "Zuhr (Sundays & Public Holidays) - Azaan: 13:00 | Salaah: 13:15"
     let special_times = null;
-    const notice = [...doc.querySelectorAll(".snotice")]
+    const notice = [...doc.querySelectorAll(".snotice, #mb-notices-list")]
       .map(e => e.textContent || "")
       .find(t => /sunday/i.test(t) && /zuhr/i.test(t));
     if (notice) {
