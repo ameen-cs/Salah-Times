@@ -251,30 +251,24 @@ class SalahTimesAPI {
     const d = new Date(); d.setHours(h, m, 0, 0); return d;
   }
 
-  // ── Live fetch — board.php and premium HTML in PARALLEL, then free board ────
+  // ── Live fetch — premium, free board and board.php in PARALLEL, best answer wins ────
 
   // Always resolves; null means "no live source answered" and the caller falls
   // back to the database. It must never reject, or one dead board would take the
   // whole card down instead of degrading to stored times.
   async _fetchLive(boardId) {
-    // Race both sources concurrently; return first non-null result
-    const rejectNull = async (p) => {
-      const r = await p;
-      if (!r) throw new Error("no data");
-      return r;
-    };
-    try {
-      return await Promise.any([
-        rejectNull(this._fetchBoardApi(boardId)),
-        rejectNull(this._fetchPremiumHtml(boardId)),
-      ]);
-    } catch { /* neither primary source answered — try the free board below */ }
-
-    // Free-tier masājid have no premium page at all, so this is their only live
-    // source. Kept out of the race above so the richer premium payload always
-    // wins where it exists; it also now covers a premium outage for everyone else.
-    try { return await this._fetchFreeBoardHtml(boardId); }
-    catch { return null; }
+    // All three sources run concurrently; the best one that answers wins, in order
+    // of how closely it tracks what the masjid's own board displays:
+    //   1. premium page — richest payload, applies scheduled changes
+    //   2. free board   — the page masājid without premium actually display
+    //   3. board.php    — fastest but lags the board (it ignores scheduled Jamaat
+    //                     changes and can be days stale: Noor showed Fajr 04:40 /
+    //                     Asr 17:00 while its board said 04:30 / 17:15)
+    const freeP = this._fetchFreeBoardHtml(boardId).catch(() => null);
+    const apiP  = this._fetchBoardApi(boardId).catch(() => null);
+    const premium = await this._fetchPremiumHtml(boardId).catch(() => null);
+    if (premium) return premium;
+    return (await freeP) || (await apiP) || null;
   }
 
   // ── board.php JSON API ───────────────────────────────────────────────────
@@ -303,11 +297,22 @@ class SalahTimesAPI {
     const isTime = s => /^\d{1,2}:\d{2}$/.test(String(s ?? "").trim());
     const t      = s => { const v = String(s ?? "").trim(); return isTime(v) ? v : null; };
 
-    const fajr    = t(d.fajrJamaah);
-    const zohr    = t(d.dhuhrJamaah);
-    const asar    = t(d.asrJamaah);
+    // A scheduled change whose date has arrived replaces the base Jamaat time —
+    // the board applies these itself, but board.php returns the old value until
+    // someone re-saves. Change stamps are ms on the live API (seconds in older
+    // payloads), so normalise before comparing.
+    const dueChange = (nextTime, unix, base) => {
+      let ts = Number(unix) || 0;
+      if (ts > 1e11) ts /= 1000;
+      return ts && ts <= Date.now() / 1000 && isTime(String(nextTime ?? "").trim())
+        ? String(nextTime).trim() : base;
+    };
+
+    const fajr    = dueChange(d.fajrNextTime,  d.fajrChangeUnix,  t(d.fajrJamaah));
+    const zohr    = dueChange(d.dhuhrNextTime, d.dhuhrChangeUnix, t(d.dhuhrJamaah));
+    const asar    = dueChange(d.asrNextTime,   d.asrChangeUnix,   t(d.asrJamaah));
     const maghrib = t(d.maghribJamaah);
-    const esha    = t(d.eshaJamaah);
+    const esha    = dueChange(d.eshaNextTime,  d.eshaChangeUnix,  t(d.eshaJamaah));
 
     if (!fajr) return null;
 
@@ -373,7 +378,8 @@ class SalahTimesAPI {
     const changes = [];
     const add = (prayer, dateStr, unix, timeStr) => {
       if (!dateStr || !timeStr || !isTime(timeStr)) return;
-      const ts = Number(unix) || 0;
+      let ts = Number(unix) || 0;
+      if (ts > 1e11) ts /= 1000; // live API sends ms
       if (ts > now) changes.push({ prayer, date: cleanDate(dateStr), time: timeStr, ts });
     };
     add("fajr",    d.fajrNextDate,  d.fajrChangeUnix,  d.fajrNextTime);
