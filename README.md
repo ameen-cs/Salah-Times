@@ -110,4 +110,17 @@ Notes:
 
 ## Deployment
 
-Pushing to the repository's default branch deploys to Netlify. Bump `CACHE_VERSION` in [sw.js](sw.js) on each deploy so clients pick up updated shell assets instead of stale cached copies.
+The Netlify site is **not** connected to this GitHub repo, so `git push` only saves the code. To publish, run the deploy script from the project folder in PowerShell:
+
+```powershell
+./deploy.ps1                       # production (asks you to confirm)
+./deploy.ps1 -Draft                # private preview URL, live site unchanged
+./deploy.ps1 -DryRun               # copy + secret scan only, deploys nothing
+./deploy.ps1 -Yes -Message "note"  # skip the confirmation, add a deploy note
+```
+
+It copies the project to a temporary folder without private files (`.claude`, `.git`, `scripts`, notes), scans that copy for keys, passwords and database addresses (and stops if it finds any), deploys it with the Netlify CLI, then checks the live pages, the database and the admin endpoint. If Windows blocks the script, run `powershell -ExecutionPolicy Bypass -File .\deploy.ps1`.
+
+Bump `CACHE_VERSION` in [sw.js](sw.js) when the shell assets or script names change, so returning visitors don't keep using stale cached copies.
+
+To undo a bad deploy, open the site's Deploys page in the Netlify dashboard and choose "Publish deploy" on an earlier one.
