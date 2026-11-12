@@ -15,7 +15,6 @@ const SHELL = [
   "/js/api.js",
   "/js/app.js",
   "/logo.png",
-  "/favicon.svg",
   "/favicon.ico",
   "/manifest.json",
 ];

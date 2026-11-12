@@ -5,8 +5,7 @@
 /api/health  /.netlify/functions/health  200
 
 # Map legacy/variant Apple touch icon paths that iOS probes automatically
-# to the single real icon, so they return 200 instead of 404.
-/apple-touch-icon.png                        /logo.png   200
-/apple-touch-icon-precomposed.png            /logo.png   200
-/apple-touch-icon-120x120.png                /logo.png   200
-/apple-touch-icon-120x120-precomposed.png    /logo.png   200
+# to the real icon (apple-touch-icon.png), so they return 200 instead of 404.
+/apple-touch-icon-precomposed.png            /apple-touch-icon.png   200
+/apple-touch-icon-120x120.png                /apple-touch-icon.png   200
+/apple-touch-icon-120x120-precomposed.png    /apple-touch-icon.png   200
