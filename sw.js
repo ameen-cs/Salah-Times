@@ -1,7 +1,7 @@
 // Static assets use stale-while-revalidate (see fetch handler), so content
 // edits propagate within one reload without a version bump. Only bump
 // CACHE_VERSION if you need to force-purge every old cache at once.
-const CACHE_VERSION = "salah-v4";
+const CACHE_VERSION = "salah-v5";
 
 const SHELL = [
   "/",
@@ -9,8 +9,9 @@ const SHELL = [
   "/schedule.html",
   "/404.html",
   "/css/style.css",
+  "/css/site.css",
   "/js/config.js",
-  "/js/supabase-client.js",
+  "/js/db-client.js",
   "/js/api.js",
   "/js/app.js",
   "/logo.png",
@@ -42,7 +43,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
-  // Cross-origin (Google Fonts, public CORS proxies, Supabase API) — let the network handle it.
+  // Cross-origin (Google Fonts, public CORS proxies) — let the network handle it.
   if (url.origin !== location.origin) return;
   // Live-data proxy must always hit the network — caching it would re-introduce
   // the stale-times bug the proxy exists to fix.

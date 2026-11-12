@@ -27,7 +27,7 @@ The site is a static front-end (no build step) that gathers each masjid's times 
 
 1. **Live board** — fetched in parallel from [MasjidBoardLive](https://masjidboardlive.com)'s JSON API (`board.php`) and premium HTML board. Chakaskraal Musjid runs its own site, which is scraped directly. All upstream requests go through a CORS proxy (`api.codetabs.com`).
 2. **`localStorage` cache** — 2-hour TTL for instant repeat loads; refreshes in the background.
-3. **Supabase database** — the live data is auto-synced here on every successful fetch, and used as a fallback when the boards are unreachable.
+3. **Netlify Database** (Postgres) — the scheduled `sync-times` function stores the live data here 3× a day, and the site falls back to it when the boards are unreachable. Admin edits are stored here too.
 4. **Hardcoded defaults** — last-resort times defined per masjid in [js/config.js](js/config.js).
 
 A few cross-cutting details:
@@ -44,20 +44,24 @@ A few cross-cutting details:
 | [schedule.html](schedule.html) | Full daily schedule for a selected masjid |
 | [admin.html](admin.html) | Password-protected manual time editor |
 | [404.html](404.html) | Not-found page |
-| [js/config.js](js/config.js) | Masjid list, default times, board IDs, Supabase config |
+| [js/config.js](js/config.js) | Masjid list, default times, board IDs |
 | [js/api.js](js/api.js) | Fetch/parse/cache logic and the source fallback chain |
-| [js/supabase-client.js](js/supabase-client.js) | Thin Supabase REST client (query / upsert) |
+| [js/db-client.js](js/db-client.js) | Browser client for the database, via `/api/db` (query / upsert / admin login) |
+| [netlify/functions/db.mjs](netlify/functions/db.mjs) | `/api/db`: public reads, password-protected writes |
+| [netlify/lib/database.mjs](netlify/lib/database.mjs) | Shared, parameterised database queries |
 | [js/app.js](js/app.js) | Schedule-page app logic |
 | [js/admin.js](js/admin.js) | Admin-page logic |
-| [css/style.css](css/style.css) | Shared styling (theme, layout, ornaments) |
-| [setup.sql](setup.sql) | Supabase table + RLS policies |
+| [css/site.css](css/site.css) | Styling for the home and schedule pages (light theme, mobile-first) |
+| [css/style.css](css/style.css) | Styling for the admin and 404 pages |
+| [setup.sql](setup.sql) | Database table schema |
+| [scripts/migrate-from-supabase.mjs](scripts/migrate-from-supabase.mjs) | One-off copy of the old Supabase rows into the Netlify Database |
 | [manifest.json](manifest.json) / [sw.js](sw.js) | PWA manifest and offline service worker |
 | [_redirects](_redirects) / [robots.txt](robots.txt) / [sitemap.xml](sitemap.xml) | Netlify & SEO config |
 
 ## Tech stack
 
 - Vanilla **HTML / CSS / JavaScript** — no framework, no build step
-- **Supabase** (Postgres + REST) for fallback storage and auto-sync
+- **Netlify Database** (Postgres) for fallback storage, admin edits and the scheduled sync
 - **MasjidBoardLive** boards + a custom scraper as live data sources
 - **Netlify** static hosting with redirects
 - **PWA** (service worker + manifest) for offline support and installability
@@ -79,10 +83,30 @@ Then open http://localhost:8000. The service worker and live fetches work over `
 ## Configuration
 
 - **Masajid & default times** live in [js/config.js](js/config.js). Add a masjid by appending an entry to the `MOSQUES` array (id, name, `boardId`/`scrapeUrl`, and `defaults`).
-- **Supabase** — set `SUPABASE_URL` / `SUPABASE_KEY` in [js/config.js](js/config.js) and create the table by running [setup.sql](setup.sql) in the Supabase SQL editor.
-- **Admin access** — gated by `ADMIN_PASSWORD` in [js/config.js](js/config.js).
+- **Database** — see [Netlify Database setup](#netlify-database-setup) below. There are no database credentials in the browser code.
+- **Admin access** — the admin password is checked on the server against the `ADMIN_PASSWORD` environment variable (Netlify dashboard → Site configuration → Environment variables). It is not in any file in the repo.
 
-> **Note:** `js/config.js` is shipped to the browser, so the Supabase anon key and admin password are publicly visible. The Supabase table relies on row-level security policies (read + anon write) rather than secret keys; treat the admin password as a light gate, not real security.
+## Netlify Database setup
+
+Netlify provisions the database automatically on deploy once `@netlify/database` is installed, and applies the migrations in [netlify/database/migrations](netlify/database/migrations) as part of each deploy.
+
+1. `netlify link` (this folder is linked to the `stanger-salah-times` project).
+2. Set the admin password: `netlify env:set ADMIN_PASSWORD "<password>"`.
+3. Local testing: `netlify dev` runs the site, the functions and a local copy of the database.
+4. Deploy (a draft with `netlify deploy`, or production with `netlify deploy --prod`). The first deploy creates the database and applies the migration.
+5. Copy the old data across (read-only on the Supabase side; safe to re-run). Preview first with `--dry-run`:
+   ```powershell
+   $env:SUPABASE_URL = "https://api.supabase.superbbulk.co.za"
+   $env:SUPABASE_KEY = "<old anon key>"
+   $env:NETLIFY_DB_URL = "<from: netlify database status --branch <branch> --show-credentials>"
+   node scripts/migrate-from-supabase.mjs --dry-run
+   node scripts/migrate-from-supabase.mjs
+   ```
+6. Test `/admin.html` (log in, edit a time, save) and `/api/db` (should list the rows).
+
+Notes:
+- Visitors' browsers only read. Stored times are refreshed by the scheduled `sync-times` function and by admin edits.
+- To change the schema later, add a new migration with `netlify database migrations new`. Applied migrations cannot be edited.
 
 ## Deployment
 

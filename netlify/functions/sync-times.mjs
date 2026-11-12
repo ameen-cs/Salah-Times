@@ -1,5 +1,5 @@
 // Scheduled sync: pulls live Jamaat times from the masjid boards and stores them
-// in Supabase, so the database fallback stays fresh even on days nobody visits.
+// in the Netlify Database, so the database fallback stays fresh even on days nobody visits.
 //
 // Runs on Netlify's servers (3x daily, see `config.schedule` below). Scheduled
 // functions only fire on the published production deploy and cannot be called over
@@ -14,6 +14,7 @@
 // the sandbox is given linkedom's DOMParser.
 
 import fs from "node:fs";
+import { getPool, queryRows, upsertRows } from "../lib/database.mjs";
 import path from "node:path";
 import vm from "node:vm";
 import { DOMParser } from "linkedom";
@@ -37,7 +38,7 @@ function readSiteFile(rel) {
   throw new Error(`cannot read ${rel}`);
 }
 
-function loadSiteCode() {
+export function loadSiteCode(db) {
   const sandbox = {
     console,
     AbortSignal,
@@ -45,6 +46,7 @@ function loadSiteCode() {
     URL,
     setTimeout,
     clearTimeout,
+    db, // server-side database, in place of the browser client
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     fetch: (url, opts = {}) =>
       fetch(url, { ...opts, headers: { "User-Agent": UA, ...(opts.headers || {}) } }),
@@ -52,7 +54,6 @@ function loadSiteCode() {
   const ctx = vm.createContext(sandbox);
 
   vm.runInContext(readSiteFile("js/config.js"), ctx, { filename: "config.js" });
-  vm.runInContext(readSiteFile("js/supabase-client.js"), ctx, { filename: "supabase-client.js" });
   // Drop the trailing `const api = new SalahTimesAPI()` — its constructor fires browser-only probes.
   const apiSrc = readSiteFile("js/api.js").replace(/^const api = new SalahTimesAPI\(\);\s*$/m, "");
   vm.runInContext(apiSrc, ctx, { filename: "api.js" });
@@ -68,14 +69,33 @@ function loadSiteCode() {
     ctx
   );
   const mosques = vm.runInContext("MOSQUES", ctx);
-  const db = vm.runInContext("db", ctx);
-  return { api, mosques, db };
+  return { api, mosques };
+}
+
+// Same query/upsert surface the site code expects from `db`, backed by the database directly.
+// Failures return null (as the browser client does) so _saveToDb's checks still work.
+export function serverDb(pool) {
+  return {
+    async query(_table, filters = {}) {
+      try { return await queryRows(pool, filters); }
+      catch (e) { console.error("[sync-times] query failed:", e.message); return null; }
+    },
+    async upsert(_table, data) {
+      try { return await upsertRows(pool, data); }
+      catch (e) { console.error("[sync-times] save failed:", e.message); return null; }
+    },
+  };
 }
 
 export default async function handler() {
-  const { api, mosques, db } = loadSiteCode();
+  return runSync(await getPool());
+}
 
-  // Record whether each Supabase write actually succeeded (_saveToSupabase swallows errors).
+export async function runSync(pool) {
+  const db = serverDb(pool);
+  const { api, mosques } = loadSiteCode(db);
+
+  // Record whether each database write actually succeeded (_saveToDb swallows errors).
   let lastWriteOk = false;
   const realUpsert = db.upsert.bind(db);
   db.upsert = async (...args) => {
@@ -96,10 +116,10 @@ export default async function handler() {
       }
       api._reconcileMaghrib(data);
       lastWriteOk = false;
-      await api._saveToSupabase(mosque, data);
+      await api._saveToDb(mosque, data);
       results.push(lastWriteOk
         ? { id: mosque.id, ok: true, fajr: data.fajr, esha: data.esha }
-        : { id: mosque.id, ok: false, error: "supabase write failed" });
+        : { id: mosque.id, ok: false, error: "database write failed" });
     } catch (e) {
       results.push({ id: mosque.id, ok: false, error: String(e.message || e).slice(0, 120) });
     }

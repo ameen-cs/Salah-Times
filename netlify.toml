@@ -9,4 +9,4 @@
 
 # The scheduled sync loads the site's own config/parser scripts at runtime
 [functions."sync-times"]
-  included_files = ["js/config.js", "js/supabase-client.js", "js/api.js"]
+  included_files = ["js/config.js", "js/api.js"]

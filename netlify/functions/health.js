@@ -12,8 +12,8 @@
 // "down". So a single monitor on this URL covers both "the site is down" and
 // "live data isn't being pulled".
 //
-// This checks live-source REACHABILITY, not Supabase freshness. The scheduled
-// sync-times function refreshes Supabase 3x daily, but a missed run is not a site
+// This checks live-source REACHABILITY, not database freshness. The scheduled
+// sync-times function refreshes the database 3x daily, but a missed run is not a site
 // outage, so alerting on row age here would be a false alarm; check that
 // function's log in Netlify instead.
 //

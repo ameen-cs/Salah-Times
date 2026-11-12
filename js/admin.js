@@ -1,8 +1,8 @@
 class AdminPanel {
   constructor() {
-    this.authenticated = sessionStorage.getItem("adminAuth") === "true";
+    this.authenticated = sessionStorage.getItem("adminAuth") === "true" && !!sessionStorage.getItem("adminPw");
     this.editingMosqueId = null;
-    this.dbRows = {};   // {[mosque_id]: row} — what's actually stored in Supabase
+    this.dbRows = {};   // {[mosque_id]: row} — what's actually stored in the database
     this.init();
   }
 
@@ -69,10 +69,11 @@ class AdminPanel {
   }
 
   bindEvents() {
-    document.getElementById("login-form").addEventListener("submit", e => {
+    document.getElementById("login-form").addEventListener("submit", async e => {
       e.preventDefault();
       const pw = document.getElementById("password").value;
-      if (pw === ADMIN_PASSWORD) {
+      // The server checks the password; it is never stored in the page
+      if (await db.login(pw)) {
         sessionStorage.setItem("adminAuth", "true");
         this.authenticated = true;
         this.showDashboard();
@@ -84,6 +85,7 @@ class AdminPanel {
 
     document.getElementById("logout-btn").addEventListener("click", () => {
       sessionStorage.removeItem("adminAuth");
+      db.logout();
       window.location.reload();
     });
 

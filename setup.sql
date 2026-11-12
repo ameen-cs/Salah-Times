@@ -1,7 +1,7 @@
--- Run this in your Supabase SQL Editor to create the salah_times table
--- Dashboard > SQL Editor > New Query > Paste & Run
+-- Reference copy of the schema. Netlify applies the migration in
+-- netlify/database/migrations/ on deploy; this file only mirrors it for reading.
 
-CREATE TABLE IF NOT EXISTS public.salah_times (
+CREATE TABLE IF NOT EXISTS salah_times (
   id             uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
   mosque_id      text        NOT NULL UNIQUE,
   mosque_name    text        NOT NULL,
@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.salah_times (
   juma_adhan     text,
   juma_sunan     text,
   juma_speaker   text,
+  juma_note      text,
   early_zohr     text,
   adhan          jsonb       DEFAULT '{}',
   special_times  jsonb       DEFAULT '{}',
@@ -24,22 +25,3 @@ CREATE TABLE IF NOT EXISTS public.salah_times (
   updated_at     timestamptz DEFAULT now(),
   updated_by     text
 );
-
--- Allow public read access (anon key)
-ALTER TABLE public.salah_times ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public read" ON public.salah_times
-  FOR SELECT USING (true);
-
-CREATE POLICY "Allow anon insert/update" ON public.salah_times
-  FOR ALL USING (true) WITH CHECK (true);
-
--- Migration: run these if the table already exists
-ALTER TABLE public.salah_times ADD COLUMN IF NOT EXISTS juma_salah     text;
-ALTER TABLE public.salah_times ADD COLUMN IF NOT EXISTS juma_adhan     text;
-ALTER TABLE public.salah_times ADD COLUMN IF NOT EXISTS juma_sunan     text;
-ALTER TABLE public.salah_times ADD COLUMN IF NOT EXISTS juma_speaker   text;
-ALTER TABLE public.salah_times ADD COLUMN IF NOT EXISTS early_zohr     text;
-ALTER TABLE public.salah_times ADD COLUMN IF NOT EXISTS next_change    jsonb DEFAULT '{}';
-ALTER TABLE public.salah_times ADD COLUMN IF NOT EXISTS extended_times jsonb DEFAULT '{}';
-ALTER TABLE public.salah_times ADD COLUMN IF NOT EXISTS announcements  jsonb DEFAULT '[]';

@@ -11,7 +11,7 @@ function localDateStr(d = new Date()) {
 // Data sources (in priority order):
 // 1. Live board  — board.php JSON API and premium theInfo HTML fetched IN PARALLEL
 // 2. localStorage cache — 2-hour TTL, used for instant loads on repeat visits
-// 3. Supabase DB  — auto-synced from live, used when live is unreachable
+// 3. Netlify DB   — auto-synced from live, used when live is unreachable
 // 4. Hardcoded defaults — last resort
 
 const LS_PREFIX    = "salah_v2_";
@@ -137,14 +137,14 @@ class SalahTimesAPI {
       data = await this._fetchLive(mosque.boardId);
       if (data) {
         data.special_times = mosque.defaults.special_times || {};
-        this._saveToSupabase(mosque, data);
+        this._saveToDb(mosque, data);
       }
     } else if (mosque.scrapeUrl) {
       data = await this._fetchScraped(mosque.scrapeUrl);
-      if (data) this._saveToSupabase(mosque, data);
+      if (data) this._saveToDb(mosque, data);
     }
 
-    if (!data) data = await this._fetchFromSupabase(id);
+    if (!data) data = await this._fetchFromDb(id);
     if (!data) data = this._getDefaults(mosque);
 
     if (!data.special_times || !Object.keys(data.special_times).length) {
@@ -169,7 +169,7 @@ class SalahTimesAPI {
       data.special_times = mosque.defaults.special_times || {};
     }
     this._reconcileMaghrib(data);
-    this._saveToSupabase(mosque, data);
+    this._saveToDb(mosque, data);
     this._applyOverride(mosque.id, data);
     this._memSet(mosque.id, data);
     this._lsWrite(mosque.id, data);
@@ -835,9 +835,9 @@ class SalahTimesAPI {
     this.mem[mosqueId] = { data, timestamp };
   }
 
-  // ── Supabase (fallback / auto-sync) ──────────────────────────────────────
+  // ── Database (fallback / auto-sync) ──────────────────────────────────────
 
-  async _fetchFromSupabase(mosqueId) {
+  async _fetchFromDb(mosqueId) {
     const rows = await db.query(TABLE_NAME, { mosque_id: mosqueId });
     if (!rows || rows.length === 0) return null;
     const r = rows[0];
@@ -860,7 +860,7 @@ class SalahTimesAPI {
   }
 
   // Mirror masājid have no board of their own, but the admin panel can still set
-  // their times in Supabase. A row saved from the Edit modal (updated_by="admin")
+  // their times in the database. A row saved from the Edit modal (updated_by="admin")
   // wins over the mirrored source prayer by prayer; anything left blank keeps
   // tracking the source board — notably Maghrib, which shifts with sunset daily.
   //
@@ -918,7 +918,7 @@ class SalahTimesAPI {
     return row;
   }
 
-  async _saveToSupabase(mosque, data) {
+  async _saveToDb(mosque, data) {
     // A manually-set Khateeb (updated_by = "admin") wins and must survive the sync.
     // Read the row's current marker first so a stale tab can't clobber a fresh admin
     // edit, and keep this.overrides in sync so display picks up the lock immediately.

@@ -27,9 +27,8 @@ class SalahTimesApp {
   renderMosqueTabs() {
     const bar = document.getElementById("mosque-tabs-bar");
     bar.innerHTML = MOSQUES.map(m => `
-      <button class="mosque-tab ${m.id === this.selectedMosqueId ? "active" : ""}"
-        data-id="${m.id}" role="tab"
-        aria-selected="${m.id === this.selectedMosqueId}">${m.shortName}</button>
+      <button type="button" class="mosque-tab ${m.id === this.selectedMosqueId ? "active" : ""}"
+        data-id="${m.id}" aria-pressed="${m.id === this.selectedMosqueId}">${m.shortName}</button>
     `).join("");
     bar.addEventListener("click", e => {
       const tab = e.target.closest(".mosque-tab");
@@ -40,10 +39,8 @@ class SalahTimesApp {
   renderMosqueList() {
     const list = document.getElementById("mosque-list");
     list.innerHTML = MOSQUES.map(m => `
-      <li class="mosque-item ${m.id === this.selectedMosqueId ? "active" : ""}" data-id="${m.id}">
-        <span class="mosque-item-dot" aria-hidden="true"></span>
-        <span class="mosque-item-name">${m.shortName}</span>
-      </li>
+      <li><button type="button" class="mosque-item ${m.id === this.selectedMosqueId ? "active" : ""}"
+        data-id="${m.id}" aria-pressed="${m.id === this.selectedMosqueId}">${m.shortName}</button></li>
     `).join("");
     list.addEventListener("click", e => {
       const item = e.target.closest(".mosque-item");
@@ -56,6 +53,11 @@ class SalahTimesApp {
       api.clearCache(this.selectedMosqueId);
       this.selectMosque(this.selectedMosqueId);
     });
+    // Keep the "next" highlight and countdown fresh while the page stays open
+    setInterval(() => {
+      const mosque = MOSQUES.find(m => m.id === this.selectedMosqueId);
+      if (mosque && this.currentTimes) this.renderTimes(mosque, this.currentTimes);
+    }, 30000);
   }
 
   async selectMosque(mosqueId) {
@@ -65,11 +67,13 @@ class SalahTimesApp {
     document.querySelectorAll(".mosque-tab").forEach(el => {
       const isActive = el.dataset.id === mosqueId;
       el.classList.toggle("active", isActive);
-      el.setAttribute("aria-selected", isActive);
+      el.setAttribute("aria-pressed", isActive);
       if (isActive) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
     });
     document.querySelectorAll(".mosque-item").forEach(el => {
-      el.classList.toggle("active", el.dataset.id === mosqueId);
+      const isActive = el.dataset.id === mosqueId;
+      el.classList.toggle("active", isActive);
+      el.setAttribute("aria-pressed", isActive);
     });
 
     const mosque = MOSQUES.find(m => m.id === mosqueId);
@@ -77,6 +81,7 @@ class SalahTimesApp {
 
     // Instant paint from the hardcoded defaults (zero network), then upgrade to
     // live/cached data the moment it resolves. Avoids a blank loading spinner.
+    this.currentTimes = mosque.defaults;
     this.renderTimes(mosque, mosque.defaults);
 
     const times = await api.getTimes(mosque);
@@ -89,88 +94,91 @@ class SalahTimesApp {
 
   // ── Main render ───────────────────────────────────────────────────────────
 
+  placeOf(mosque) {
+    return { ballito: "Ballito", blythedale: "Blythedale Beach", glenhills: "Glen Hills", chakaskraal: "Chakas Kraal" }[mosque.id]
+      || "KwaDukuza (Stanger)";
+  }
+
+  fmt(t) {
+    return t && t !== "—" ? String(t).replace(/^(\d):/, "0$1:") : "—";
+  }
+
+  untilLabel(timeStr, tomorrow) {
+    const t = this.parseTime(timeStr);
+    if (tomorrow) t.setDate(t.getDate() + 1);
+    const mins = Math.max(0, Math.round((t - new Date()) / 60000));
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return h ? `${h}h ${m}m` : `${m} min`;
+  }
+
   renderTimes(mosque, times) {
     const date       = new Date();
     const dateStr    = this.todayStr;
-    const dateDisplay = date.toLocaleDateString("en-ZA", {
-      weekday: "long", year: "numeric", month: "long", day: "numeric"
-    });
     const nextPrayer = this.getNextPrayer(times, dateStr);
-    const nextTime   = api.getEffectiveTime(times, nextPrayer, dateStr);
-
-    const hijriDate = times.hijri_date || this.getHijriDate(date);
+    const hijriDate = this.formatHijri(times.hijri_date || this.getHijriDate(date));
 
     // ── Header ──────────────────────────────────────────────────────────────
+    const PIN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
     document.getElementById("mosque-header").innerHTML = `
-      <div class="mosque-title-row">
-        <h1 class="mosque-title">${mosque.name}</h1>
-      </div>
-      ${hijriDate ? `<p class="hijri-date">${hijriDate}</p>` : ""}
-      <p class="current-date">${dateDisplay}</p>
-      ${times.updated_at ? `<p class="last-updated">Updated ${this.relativeTime(times.updated_at)}</p>` : ""}
-    `;
+      <h1 class="mosque-title">${mosque.name}</h1>
+      <p class="dates">
+        <span class="current-date">${date.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })}</span>
+        ${hijriDate ? `<span class="sep" aria-hidden="true">·</span><span class="hijri-date">${hijriDate}</span>` : ""}
+      </p>
+      <p class="where">
+        <span class="loc">${PIN}${this.placeOf(mosque)}</span>
+        ${times.updated_at ? `<span class="sep" aria-hidden="true">·</span><span>Updated ${this.relativeTime(times.updated_at)}</span>` : ""}
+      </p>`;
 
-    // ── Prayer cards ─────────────────────────────────────────────────────────
+    // ── Timeline ─────────────────────────────────────────────────────────────
     const adhan   = times.adhan || {};
     const prayers = ["fajr", "zohr", "asar", "maghrib", "esha"];
     const isJuma  = date.getDay() === 5;
+    const hasJuma = !!(times.juma_khutbah || times.juma_adhan);
 
-    const cards = prayers.map(prayer => {
-      // On Friday, the Zohr slot becomes the Jumu'ah card — unless this mosque
-      // has no Jumu'ah, in which case fall through to the normal Zohr card
-      if (isJuma && prayer === "zohr") {
-        const juma = this.renderJumaCard(times, { highlight: nextPrayer === "zohr", asZohrSlot: true });
-        if (juma) return juma;
-      }
+    const rows = prayers.map(prayer => {
+      const asJuma  = isJuma && prayer === "zohr" && hasJuma;
+      const jamaat  = asJuma
+        ? (times.juma_khutbah || times.juma_adhan)
+        : api.getEffectiveTime(times, prayer, dateStr);
+      const adhanTime = asJuma ? times.juma_adhan : (adhan[prayer] || null);
+      const isNext  = nextPrayer === prayer;
+      const hasTime = jamaat && jamaat !== "—";
+      const past    = !isNext && hasTime && this.isPast(jamaat);
+      const tomorrow = isNext && hasTime && this.isPast(jamaat);
+      const chips   = this.getSpecialChips(times.special_times, prayer, dateStr);
 
-      const jamaat = api.getEffectiveTime(times, prayer, dateStr);
+      // Early Zohr — hidden for Jamia & Noor because their early time is already
+      // shown as a day-specific chip
+      const early = prayer === "zohr" && times.early_zohr && !["jamia", "nur"].includes(mosque.id)
+        ? `<span class="tag">Early ${this.fmt(times.early_zohr)}</span>` : "";
 
-      const adhanTime = adhan[prayer] || null;
-      const isNext    = nextPrayer === prayer;
-      const chips     = this.getSpecialChips(times.special_times, prayer, dateStr);
+      const tags = [
+        isNext && hasTime ? `<span class="tag next">${tomorrow ? "Next · tomorrow" : "Next · in " + this.untilLabel(jamaat, false)}</span>` : "",
+        asJuma ? '<span class="tag ok">Jumu\'ah today</span>' : "",
+        early,
+        ...chips.map(c => `<span class="tag${c.today ? " warn" : ""}">${c.label}</span>`),
+      ].filter(Boolean).join("");
 
-      // Early Zohr row — hidden for Jamia & Noor because their early time is already
-      // shown as a day-specific chip at the top of the card
-      const earlyRow = prayer === "zohr" && times.early_zohr
-        && !["jamia", "nur"].includes(mosque.id) ? `
-        <div class="time-row">
-          <span class="time-label">Early</span>
-          <span class="adhan-time">${times.early_zohr}</span>
-        </div>` : "";
+      const name = asJuma ? "Jumu'ah" : PRAYER_LABELS[prayer];
+      const arabic = asJuma ? "الجمعة" : (PRAYER_ARABIC[prayer] || "");
 
       return `
-        <div class="prayer-card ${isNext ? "next-prayer" : ""}" data-arabic="${PRAYER_ARABIC[prayer] || ""}">
-          <div class="card-header">
-            <div class="card-meta">
-              <div class="prayer-name">${PRAYER_LABELS[prayer]}<span class="prayer-name-arabic">${PRAYER_ARABIC[prayer] || ""}</span></div>
-              ${chips.length ? `
-                <div class="special-chips">${chips.map(c =>
-                  `<span class="special-chip${c.today ? " chip-today" : ""}">${c.label}</span>`
-                ).join("")}</div>` : ""}
-            </div>
-          </div>
-          <div class="card-times">
-            ${adhanTime ? `
-              <div class="time-row">
-                <span class="time-label">Adhān</span>
-                <span class="adhan-time">${adhanTime}</span>
-              </div>` : ""}
-            ${earlyRow}
-            <div class="time-row">
-              <span class="time-label">Jamaat</span>
-              <span class="jamaat-time">${jamaat || "—"}</span>
-            </div>
-          </div>
-        </div>`;
+        <li class="row${past ? " past" : ""}${isNext ? " is-next" : ""}">
+          <div class="nm">${name}<span class="ar">${arabic}</span></div>
+          <div class="j">${hasTime ? this.fmt(jamaat) : "—"}</div>
+          <div class="sub">${adhanTime ? `Adhān ${this.fmt(adhanTime)}` : "Jamaat time"}</div>
+          ${tags ? `<div class="st">${tags}</div>` : ""}
+        </li>`;
     }).join("");
 
-    // ── Jumu'ah card — shown below on non-Fridays; on Friday it replaces the Zohr slot above
-    const hasJuma = times.juma_khutbah || times.juma_adhan;
-    const jumaCard = (hasJuma && !isJuma) ? this.renderJumaCard(times, { highlight: false, asZohrSlot: false }) : "";
+    document.getElementById("prayer-cards").innerHTML = rows;
+    document.getElementById("next-cap").textContent = `Next: ${PRAYER_LABELS[nextPrayer] || ""}`;
 
-    document.getElementById("prayer-cards").innerHTML = cards + jumaCard;
+    // ── Jumu'ah panel ────────────────────────────────────────────────────────
+    document.getElementById("juma-wrap").innerHTML = this.renderJumaCard(times, isJuma);
 
-    // ── Extra info sections + links ──────────────────────────────────────────
+    // ── Side panels + links ──────────────────────────────────────────────────
     document.getElementById("mosque-links").innerHTML =
       this.renderNextChange(times) +
       this.renderAnnouncements(times) +
@@ -178,50 +186,24 @@ class SalahTimesApp {
       this.renderLinks(mosque);
   }
 
-  renderJumaCard(times, { highlight = false, asZohrSlot = false } = {}) {
+  renderJumaCard(times, isJuma) {
     const hasJuma = times.juma_khutbah || times.juma_adhan;
     if (!hasJuma) return "";
-    const classes = ["prayer-card", "juma-card"];
-    if (!asZohrSlot) classes.push("juma-full");
-    if (highlight)  classes.push("next-prayer");
+    const tile = (label, val, cls = "") => `<div><dt>${label}</dt><dd${cls ? ` class="${cls}"` : ""}>${val}</dd></div>`;
     return `
-      <div class="${classes.join(" ")}" data-arabic="الجمعة">
-        <div class="card-header">
-          <div class="card-meta">
-            <div class="prayer-name">Jumu'ah<span class="prayer-name-arabic">الجمعة</span></div>
-            ${asZohrSlot ? '<div class="special-chips"><span class="special-chip chip-today">Today</span></div>' : ""}
-          </div>
-        </div>
-        <div class="card-times">
-          ${times.juma_adhan ? `
-            <div class="time-row">
-              <span class="time-label">Adhān</span>
-              <span class="adhan-time">${times.juma_adhan}</span>
-            </div>` : ""}
-          ${times.juma_sunan ? `
-            <div class="time-row">
-              <span class="time-label">Sunan</span>
-              <span class="adhan-time">${times.juma_sunan}</span>
-            </div>` : ""}
-          ${times.juma_khutbah ? `
-            <div class="time-row">
-              <span class="time-label">Khutbah</span>
-              <span class="jamaat-time">${times.juma_khutbah}</span>
-            </div>` : ""}
-          ${times.juma_speaker ? `
-            <div class="time-row speaker-row">
-              <span class="time-label">Khateeb</span>
-              <span class="speaker-name">${times.juma_speaker}</span>
-            </div>` : ""}
-          ${!times.juma_speaker && times.juma_note ? `
-            <div class="time-row juma-note-row">
-              <span class="juma-note">${this._escHtml(times.juma_note)}</span>
-            </div>` : ""}
-        </div>
+      <div class="sec-h"><h2>Jumu'ah <span class="ar" style="font-family:var(--font-ar);font-size:1.15rem;color:var(--brand);font-weight:400">الجمعة</span></h2><span>${isJuma ? "Today" : "Fridays"}</span></div>
+      <div class="panel">
+        <dl class="kv cols4">
+          ${times.juma_adhan   ? tile("Adhān", this.fmt(times.juma_adhan)) : ""}
+          ${times.juma_sunan   ? tile("Sunan", this.fmt(times.juma_sunan)) : ""}
+          ${times.juma_khutbah ? tile("Khutbah", this.fmt(times.juma_khutbah)) : ""}
+          ${times.juma_speaker ? tile("Khateeb", this._escHtml(times.juma_speaker), "txt") : ""}
+        </dl>
+        ${!times.juma_speaker && times.juma_note ? `<p class="juma-note">${this._escHtml(times.juma_note)}</p>` : ""}
       </div>`;
   }
 
-  // ── Info sections ─────────────────────────────────────────────────────────
+  // ── Info panels ───────────────────────────────────────────────────────────
 
   renderNextChange(times) {
     const nc = times.next_change;
@@ -244,61 +226,43 @@ class SalahTimesApp {
     let body;
     if (breakdownRows.length) {
       body = `
-        <div class="change-times-grid">
-          ${breakdownRows.map(([name, time]) => `
-            <div class="change-time-item">
-              <span class="change-time-label">${name}</span>
-              <span class="change-time-value">${time}</span>
-            </div>`).join("")}
-        </div>`;
+        <dl class="kv">
+          ${breakdownRows.map(([name, time]) => `<div><dt>${name}</dt><dd>${this._escHtml(String(time))}</dd></div>`).join("")}
+        </dl>`;
     } else if (list.length) {
       body = `
-        <ul class="change-list">
+        <ul class="change">
           ${list.map(c => {
             const label = PRAYER_LABELS[c.prayer] || c.prayer || "";
-            const dateStr = c.date && c.date !== nc.date ? `<span class="change-list-date">${this._escHtml(String(c.date))}</span>` : "";
-            return `
-              <li class="change-list-item">
-                <span class="change-list-prayer">${this._escHtml(label)}</span>
-                ${dateStr}
-                <span class="change-list-time">${this._escHtml(String(c.time))}</span>
-              </li>`;
+            const dateStr = c.date && c.date !== nc.date ? `<small>${this._escHtml(String(c.date))}</small>` : "";
+            return `<li><span>${this._escHtml(label)}${dateStr}</span><b>${this._escHtml(String(c.time))}</b></li>`;
           }).join("")}
         </ul>`;
     } else {
       const prayerLabel = nc.prayer ? (PRAYER_LABELS[nc.prayer] || nc.prayer) : "";
-      body = `<div class="change-simple-time">${prayerLabel ? `<span class="change-simple-prayer">${prayerLabel}</span> ` : ""}${nc.time}</div>`;
+      body = `<ul class="change"><li><span>${prayerLabel}</span><b>${this._escHtml(String(nc.time))}</b></li></ul>`;
     }
 
     const headerDate = nc.date ? this._escHtml(String(nc.date)) : "";
     return `
-      <div class="info-section next-change-section">
-        <div class="info-section-header">
-          <span class="info-section-icon" aria-hidden="true"></span>
-          <div class="info-section-title-wrap">
-            <span class="info-section-title">Next Salāh Change</span>
-            ${headerDate ? `<span class="info-section-date">${headerDate}</span>` : ""}
-          </div>
-        </div>
+      <section class="panel">
+        <h3>Next Salāh change</h3>
+        <p class="cap">${headerDate ? `Applies from ${headerDate}` : "Upcoming change"}</p>
         ${body}
-      </div>`;
+      </section>`;
   }
 
   renderAnnouncements(times) {
     const ann = times.announcements;
     if (!ann || !ann.length) return "";
     return `
-      <div class="info-section announcements-section">
-        <div class="info-section-header">
-          <span class="info-section-icon" aria-hidden="true"></span>
-          <div class="info-section-title-wrap">
-            <span class="info-section-title">Announcements</span>
-          </div>
-        </div>
-        <ul class="announcements-list">
-          ${ann.map(a => `<li class="announcement-item">${this._escHtml(a)}</li>`).join("")}
+      <section class="panel">
+        <h3>Announcements</h3>
+        <p class="cap">From the masjid</p>
+        <ul class="ann">
+          ${ann.map(a => `<li>${this._escHtml(a)}</li>`).join("")}
         </ul>
-      </div>`;
+      </section>`;
   }
 
   renderExtendedTimes(times) {
@@ -319,47 +283,39 @@ class SalahTimesApp {
 
     const entries = Object.entries(LABELS)
       .filter(([key]) => et[key])
-      .map(([key, label]) => `
-        <div class="ext-time-item">
-          <span class="ext-time-label">${label}</span>
-          <span class="ext-time-value">${et[key]}</span>
-        </div>`);
+      .map(([key, label]) => `<div><dt>${label}</dt><dd>${this._escHtml(String(et[key]))}</dd></div>`);
 
     if (!entries.length) return "";
 
     return `
-      <div class="info-section extended-section">
-        <details class="extended-details">
-          <summary class="extended-summary">
-            <span class="info-section-icon" aria-hidden="true"></span>
-            <span class="info-section-title">Extended Prayer Times</span>
-            <span class="extended-arrow">▸</span>
+      <section class="panel">
+        <details class="ext">
+          <summary>Extended prayer times
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
           </summary>
-          <div class="ext-times-grid">
-            ${entries.join("")}
-          </div>
+          <dl class="kv">${entries.join("")}</dl>
         </details>
-      </div>`;
+      </section>`;
   }
 
   renderLinks(mosque) {
-    const ICON_BOARD = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`;
-    const ICON_LIVE  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a8 8 0 0 0 0 12.8M18.4 5.6a8 8 0 0 1 0 12.8M8.5 8.5a4 4 0 0 0 0 7M15.5 8.5a4 4 0 0 1 0 7"/></svg>`;
-    const ICON_PIN   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>`;
+    const ICON_BOARD = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`;
+    const ICON_LIVE  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a8 8 0 0 0 0 12.8M18.4 5.6a8 8 0 0 1 0 12.8M8.5 8.5a4 4 0 0 0 0 7M15.5 8.5a4 4 0 0 1 0 7"/></svg>`;
+    const ICON_PIN   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>`;
 
     const links = [];
     if (mosque.boardUrl) links.push(
-      `<a href="${mosque.boardUrl}" target="_blank" rel="noopener" class="link-btn board-link">${ICON_BOARD}Live Board</a>`
+      `<a href="${mosque.boardUrl}" target="_blank" rel="noopener" class="btn pri">${ICON_BOARD}Live Board</a>`
     );
     if (mosque.liveUrl) links.push(
-      `<a href="${mosque.liveUrl}" target="_blank" rel="noopener" class="link-btn live-link">${ICON_LIVE}Live Stream</a>`
+      `<a href="${mosque.liveUrl}" target="_blank" rel="noopener" class="btn">${ICON_LIVE}Live Stream</a>`
     );
     const mapsUrl = mosque.mapsUrl
       || (mosque.mapsQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mosque.mapsQuery)}` : null);
     if (mapsUrl) links.push(
-      `<a href="${mapsUrl}" target="_blank" rel="noopener" class="link-btn directions-link">${ICON_PIN}Directions</a>`
+      `<a href="${mapsUrl}" target="_blank" rel="noopener" class="btn">${ICON_PIN}Directions</a>`
     );
-    return links.length ? `<div class="links-row">${links.join("")}</div>` : "";
+    return links.length ? `<div class="links">${links.join("")}</div>` : "";
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -430,31 +386,46 @@ class SalahTimesApp {
     return { api: "Live API", database: "Database", default: "Default" }[source] || source;
   }
 
+  // ── Hijri date ────────────────────────────────────────────────────────────
+  // Always shown as "2nd Jumada al-Akhira 1448 AH", whether it came from the live
+  // board ("2 Jumada al-Thani 1448") or from the local calculation below.
+
+  static HIJRI_MONTHS = [
+    "Muharram", "Safar", "Rabi' al-Awwal", "Rabi' al-Akhir",
+    "Jumada al-Ula", "Jumada al-Akhira", "Rajab", "Sha'ban",
+    "Ramadan", "Shawwal", "Dhul Qa'dah", "Dhul Hijjah"
+  ];
+
+  ordinal(n) {
+    const s = ["th", "st", "nd", "rd"], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  // Accepts "2 Jumada al-Thani 1448" (board) or "2 Jumada al-Akhira 1448" (calculated)
+  formatHijri(str) {
+    if (!str) return "";
+    const m = String(str).trim().match(/^([0-9]{1,2}) +(.+?) +([0-9]{4})(?: *AH)?$/i);
+    if (!m) return String(str);
+    let name = m[2];
+    // Normalise the board's wording to the one used across the site
+    name = name.replace(/Jumada al-Thani/i, "Jumada al-Akhira").replace(/Rabi' al-Thani/i, "Rabi' al-Akhir");
+    return `${this.ordinal(parseInt(m[1], 10))} ${name} ${m[3]} AH`;
+  }
+
   getHijriDate(date) {
-    const isValidHijri = (str) => str && !str.includes("BC") && /\b1[34]\d{2}\b/.test(str);
-    try {
-      const formatted = new Intl.DateTimeFormat("en-US-u-ca-islamic-umalqura", {
-        day: "numeric", month: "long", year: "numeric"
-      }).format(date);
-      const result = formatted.replace(/\s*AH\s*$/, "").trim();
-      if (isValidHijri(result)) return result;
-    } catch {}
-    try {
-      const formatted = new Intl.DateTimeFormat("en-US-u-ca-islamic", {
-        day: "numeric", month: "long", year: "numeric"
-      }).format(date);
-      const result = formatted.replace(/\s*AH\s*$/, "").trim();
-      if (isValidHijri(result)) return result;
-    } catch {}
+    const names = SalahTimesApp.HIJRI_MONTHS;
+    for (const cal of ["islamic-umalqura", "islamic"]) {
+      try {
+        const parts = new Intl.DateTimeFormat(`en-u-ca-${cal}-nu-latn`, { day: "numeric", month: "numeric", year: "numeric" }).formatToParts(date);
+        const get = t => parseInt(parts.find(p => p.type === t)?.value, 10);
+        const d = get("day"), mo = get("month"), y = get("year");
+        if (d && mo >= 1 && mo <= 12 && y >= 1300 && y < 1500) return `${d} ${names[mo - 1]} ${y}`;
+      } catch {}
+    }
     return this._hijriFromJD(date);
   }
 
   _hijriFromJD(date) {
-    const HIJRI_MONTHS = [
-      "Muharram","Safar","Rabi' al-Awwal","Rabi' al-Thani",
-      "Jumada al-Ula","Jumada al-Thani","Rajab","Sha'ban",
-      "Ramadan","Shawwal","Dhu'l-Qi'dah","Dhu'l-Hijjah"
-    ];
     const jd = Math.floor((date.getTime() / 86400000) + 2440587.5);
     const l = jd - 1948440 + 10632;
     const n = Math.floor((l - 1) / 10631);
@@ -466,7 +437,7 @@ class SalahTimesApp {
     const month = Math.floor((24 * l3) / 709);
     const day = l3 - Math.floor((709 * month) / 24);
     const year = 30 * n + j - 30;
-    return `${HIJRI_MONTHS[month - 1]} ${day}, ${year}`;
+    return `${day} ${SalahTimesApp.HIJRI_MONTHS[month - 1]} ${year}`;
   }
 
   _escHtml(str) {
