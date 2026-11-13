@@ -230,7 +230,22 @@ class SalahTimesAPI {
         .toLocaleDateString("en-ZA", { weekday: "long" }).toLowerCase();
       raw = prayerSpecial[dayName] ?? times[prayer];
     }
-    return this.normalizeTime(raw, prayer);
+    const t = this.normalizeTime(raw, prayer);
+    // No Maghrib for this masjid → use Stanger Jamia's Maghrib
+    if (prayer === "maghrib" && !this._isValidTime(t)) return this.getJamiaMaghrib(times) || t;
+    return t;
+  }
+
+  // Jamia's Maghrib: live/in-memory data first, then its localStorage cache,
+  // then the shared area Maghrib. `exclude` stops Jamia recursing into itself.
+  getJamiaMaghrib(exclude) {
+    const jamia = this.mem["jamia"]?.data || this._lsRead("jamia")?.data;
+    if (jamia && jamia !== exclude) {
+      const t = this.normalizeTime(jamia.maghrib, "maghrib");
+      if (this._isValidTime(t)) return t;
+    }
+    const shared = this._getSharedMaghrib();
+    return shared && this._isValidTime(shared.time) ? this.normalizeTime(shared.time, "maghrib") : null;
   }
 
   // Returns which prayer is currently "next" based on Jamia's live data.

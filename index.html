@@ -92,7 +92,7 @@
     <div class="wrap">
       <a href="index.html" class="brand" aria-label="Salah Times home">
         <img src="/logo.png" alt="" height="32">
-        <span class="brand-text"><b>Salah Times</b><small>Stanger · Ballito</small></span>
+        <span class="brand-text"><b>Salah Times</b><small>Stanger</small></span>
       </a>
       <nav class="top-nav" aria-label="Main">
         <a href="index.html" aria-current="page">Today</a>
@@ -155,7 +155,6 @@
         </div>
       </div>
       <div id="next-list-wrap"></div>
-      <p id="home-updated" class="hint"></p>
     </section>
     <aside class="aside">
       <a href="schedule.html" class="cta">Full prayer schedule
@@ -165,12 +164,6 @@
     </aside>
   </main>
 
-  <section class="about wrap" aria-labelledby="about-title">
-    <h2 id="about-title">Salah times for Stanger and Ballito</h2>
-    <p>Live Jamaat times for every masjid in Stanger (KwaDukuza), Ballito, Chakaskraal, Glenhills, Sunnypark and Blythedale Beach: Fajr, Zohr, Asr, Maghrib, Esha and Jumu'ah. Times come from each masjid's own board and are refreshed several times a day. Tap a masjid to see its Adhān times, Jumu'ah details, announcements and upcoming changes.</p>
-  </section>
-
-  <footer class="foot wrap"><p>All times are Jamaat times</p></footer>
 
   <nav class="tabbar" aria-label="Main">
     <a href="index.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Today</a>
@@ -348,11 +341,12 @@
         const friday = this.isFriday(this.todayStr);
         for (const prayer of PRAYERS) {
           let t = api.getEffectiveTime(times, prayer, this.todayStr);
+          let juma = false;
           if (friday && prayer === "zohr") {
             const j = this.jumaJamaat(times);
-            if (j) t = j;
+            if (j) { t = j; juma = true; }
           }
-          if (t && this.parseTime(t) > now) return { prayer, time: t, tomorrow: false };
+          if (t && this.parseTime(t) > now) return { prayer, time: t, tomorrow: false, juma };
         }
         const fajr = this.getPrayerTimeForDate(times, "fajr", this.tomorrowStr);
         return { prayer: "fajr", time: fajr || "—", tomorrow: true };
@@ -492,11 +486,13 @@
 
           decorated.forEach(r => {
             if (r.nextInfo.tomorrow && referencePrayer) {
-              const t = r.times
+              const isJuma = referencePrayer === "zohr" && this.isFriday(this.todayStr);
+              const j = isJuma ? this.jumaJamaat(r.times) : null;
+              const t = j || (r.times
                 ? api.getEffectiveTime(r.times, referencePrayer, this.todayStr)
-                : null;
+                : null);
               const timeToUse = t || fallbackTime;
-              if (timeToUse) r.nextInfo = { prayer: referencePrayer, time: timeToUse, tomorrow: false };
+              if (timeToUse) r.nextInfo = { prayer: referencePrayer, time: timeToUse, tomorrow: false, juma: isJuma };
             }
           });
         }
@@ -532,8 +528,8 @@
         if (!first) return;
         const info = first.nextInfo;
         set("next-label", info.tomorrow ? "Tomorrow's first Jamaat" : "Next Jamaat");
-        set("next-name", PRAYER_LABELS[info.prayer] || info.prayer);
-        set("next-ar", PRAYER_ARABIC_HOME[info.prayer] || "");
+        set("next-name", info.juma ? "Jumu'ah" : (PRAYER_LABELS[info.prayer] || info.prayer));
+        set("next-ar", info.juma ? "الجمعة" : (PRAYER_ARABIC_HOME[info.prayer] || ""));
         set("next-time", `${this.fmt(info.time)}<small>earliest</small>`);
 
         const when = this.parseTime(info.time);
@@ -542,9 +538,9 @@
         this.startCountdown();
       }
 
-      cardHtml({ mosque, time, isFirst, isTomorrow, prayer, adhan }) {
+      cardHtml({ mosque, time, isFirst, isTomorrow, prayer, adhan, juma }) {
         const hasTime = time && time !== "—";
-        const label = PRAYER_LABELS[prayer] || prayer;
+        const label = juma && !isTomorrow ? "Jumu'ah" : (PRAYER_LABELS[prayer] || prayer);
         const tags = `<span class="tag${isFirst && hasTime ? " next" : ""}">${label}</span>` +
           (isTomorrow ? '<span class="tag warn">Tomorrow</span>' : "") +
           (adhan && !isTomorrow ? `<span class="tag">Adhān ${this.fmt(adhan)}</span>` : "");
@@ -565,10 +561,10 @@
         const firstIdx = rows.findIndex(r => !r.nextInfo.tomorrow && r.nextInfo.time !== "—");
         const html = rows.map((r, i) => this.cardHtml({
           mosque: r.mosque, time: r.nextInfo.time, prayer: r.nextInfo.prayer,
-          isFirst: i === firstIdx, isTomorrow: r.nextInfo.tomorrow,
+          isFirst: i === firstIdx, isTomorrow: r.nextInfo.tomorrow, juma: r.nextInfo.juma,
           adhan: this.getPrayerAdhan(r.times, r.nextInfo.prayer),
         })).join("");
-        document.getElementById("list-title").textContent = "Next Jamaat";
+        document.getElementById("list-title").textContent = "Next salah by masjid";
         this._setList(html, rows.length);
       }
 
@@ -588,7 +584,8 @@
               const tmw = this.getPrayerTimeForDate(r.times, prayer, this.tomorrowStr);
               if (tmw && tmw !== "—") { time = tmw; isTomorrow = true; }
             }
-            return { mosque: r.mosque, time, isTomorrow, adhan: this.getPrayerAdhan(r.times, prayer) };
+            const juma = prayer === "zohr" && this.isFriday(this.todayStr) && !!this.jumaJamaat(r.times);
+            return { mosque: r.mosque, time, isTomorrow, juma, adhan: this.getPrayerAdhan(r.times, prayer) };
           })
           .sort((a, b) => {
             const ka = (a.isTomorrow ? 1440 : 0) + this.sortMinutes(a.time);
@@ -620,8 +617,6 @@
         });
         const c = document.getElementById("list-count");
         if (c) c.textContent = `${count} masjid${count === 1 ? "" : "s"}`;
-        const el = document.getElementById("home-updated");
-        if (el) el.textContent = "Tap any masjid to see its full details";
       }
 
       // ── Countdown ───────────────────────────────────────────────────────────

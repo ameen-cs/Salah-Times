@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   1. Copies the project to a temporary folder, leaving out private files
-     (.claude, .git, .vscode, scripts, README, setup.sql, this script).
+     (.claude, .git, .vscode, scripts, README, Deploy.md, setup.sql, this script).
   2. Scans that copy for keys, passwords and database addresses. Stops if it finds any.
   3. Deploys the copy to Netlify (production by default).
   4. Checks the live site: pages, database and admin login endpoint.
@@ -56,7 +56,7 @@ $Stage = Join-Path $env:TEMP ("salah-deploy-" + (Get-Date -Format "yyyyMMdd-HHmm
 New-Item -ItemType Directory -Path $Stage | Out-Null
 
 $excludeDirs  = @(".claude", ".git", ".netlify", ".vscode", "scripts")
-$excludeFiles = @("README.md", "setup.sql", "deploy.ps1", ".gitignore")
+$excludeFiles = @("README.md", "Deploy.md", "setup.sql", "deploy.ps1", ".gitignore")
 robocopy $Root $Stage /E /XD $excludeDirs /XF $excludeFiles /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { Fail "Copying the project failed (robocopy code $LASTEXITCODE)." }
 $fileCount = (Get-ChildItem $Stage -Recurse -File | Where-Object { $_.FullName -notmatch "\\node_modules\\" }).Count

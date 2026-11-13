@@ -122,8 +122,8 @@ class SalahTimesApp {
     document.getElementById("mosque-header").innerHTML = `
       <h1 class="mosque-title">${mosque.name}</h1>
       <p class="dates">
+        ${hijriDate ? `<span class="hijri-date">${hijriDate}</span><span class="sep" aria-hidden="true">·</span>` : ""}
         <span class="current-date">${date.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })}</span>
-        ${hijriDate ? `<span class="sep" aria-hidden="true">·</span><span class="hijri-date">${hijriDate}</span>` : ""}
       </p>
       <p class="where">
         <span class="loc">${PIN}${this.placeOf(mosque)}</span>
@@ -155,7 +155,6 @@ class SalahTimesApp {
 
       const tags = [
         isNext && hasTime ? `<span class="tag next">${tomorrow ? "Next · tomorrow" : "Next · in " + this.untilLabel(jamaat, false)}</span>` : "",
-        asJuma ? '<span class="tag ok">Jumu\'ah today</span>' : "",
         early,
         ...chips.map(c => `<span class="tag${c.today ? " warn" : ""}">${c.label}</span>`),
       ].filter(Boolean).join("");
@@ -173,7 +172,7 @@ class SalahTimesApp {
     }).join("");
 
     document.getElementById("prayer-cards").innerHTML = rows;
-    document.getElementById("next-cap").textContent = `Next: ${PRAYER_LABELS[nextPrayer] || ""}`;
+    document.getElementById("next-cap").textContent = `Next: ${isJuma && hasJuma && nextPrayer === "zohr" ? "Jumu'ah" : (PRAYER_LABELS[nextPrayer] || "")}`;
 
     // ── Jumu'ah panel ────────────────────────────────────────────────────────
     document.getElementById("juma-wrap").innerHTML = this.renderJumaCard(times, isJuma);
@@ -330,7 +329,9 @@ class SalahTimesApp {
         const label = new Date(key).toLocaleDateString("en-ZA", { month: "short", day: "numeric" });
         return [{ label: `${label}: ${val}`, today: key === dateStr }];
       }
-      return [{ label: `${key.charAt(0).toUpperCase() + key.slice(1, 3)}: ${val}`, today: key.toLowerCase() === todayDay }];
+      // Weekday times (e.g. "Sat: 1:30") only show on that day
+      if (key.toLowerCase() !== todayDay) return [];
+      return [{ label: `${key.charAt(0).toUpperCase() + key.slice(1, 3)}: ${val}`, today: true }];
     });
   }
 
@@ -369,9 +370,7 @@ class SalahTimesApp {
 
   updateFooterDate() {
     const el = document.getElementById("footer-date");
-    if (el) el.textContent = `All times are Jamaat times · ${
-      new Date().toLocaleDateString("en-ZA", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
-    }`;
+    if (el) el.textContent = "All times are Jamaat times";
   }
 
   relativeTime(iso) {

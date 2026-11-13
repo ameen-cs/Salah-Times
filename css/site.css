@@ -126,12 +126,13 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .tag { font-size: .7rem; font-weight: 600; padding: .15rem .55rem; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
 .tag.next { background: var(--brand); color: var(--brand-ink); }
 .tag.warn { background: var(--warn-bg); color: var(--warn); }
-.tag.ok { background: var(--ok-bg); color: var(--ok); }
-.empty { padding: 2rem 1rem; text-align: center; color: var(--ink-3); background: var(--surface); border: 1px dashed var(--line); border-radius: 16px; }
+.tag.ok { background: var(--ok-bg); color: var(--ok); }.empty { padding: 2rem 1rem; text-align: center; color: var(--ink-3); background: var(--surface); border: 1px dashed var(--line); border-radius: 16px; }
 .hint { margin-top: 1rem; font-size: .8rem; color: var(--ink-3); text-align: center; }
 .cta { display: flex; align-items: center; justify-content: center; gap: .5rem; min-height: 48px; border-radius: 14px; background: var(--brand); color: var(--brand-ink); font-weight: 700; text-decoration: none; }
 .cta:hover { background: #7A5D33; }
-.aside { display: none; }
+.aside { display: grid; justify-items: center; gap: .85rem; margin-top: 1.25rem; text-align: center; }
+.aside .cta { width: 100%; max-width: 320px; }
+.aside p { max-width: 460px; font-size: .85rem; color: var(--ink-3); }
 
 /* ── Schedule: picker, masjid header, layout ── */
 .picker { position: sticky; top: calc(var(--header-h) + env(safe-area-inset-top, 0px)); z-index: 15; background: var(--bg); border-bottom: 1px solid var(--line); }
@@ -142,6 +143,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .mh .dates { font-size: .95rem; font-weight: 500; color: var(--hero-ink); display: flex; flex-wrap: wrap; justify-content: center; gap: .1rem .65rem; }
 .mh .dates span { white-space: nowrap; }
 .mh .dates .hijri-date { color: var(--gold); }
+@media (max-width: 599px) { .mh .dates .sep { display: none; } }
 .mh .where { justify-self: center; width: max-content; max-width: 100%; margin-top: .35rem; padding: .3rem .8rem; border: 1px solid var(--hero-line); border-radius: 999px; font-size: .78rem; color: var(--hero-dim); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .1rem .5rem; }
 .mh .where svg { flex: none; color: var(--gold); }
 .mh .where .loc { display: inline-flex; align-items: center; gap: .35rem; }
@@ -223,9 +225,7 @@ details.ext .kv { margin-top: .5rem; }
   .hero { padding-block: 2.5rem 2.75rem; }
   .main { max-width: 900px; padding-block: 1.75rem 3rem; }
   .controls .seg { justify-content: center; }
-  .aside { display: grid; justify-items: center; gap: .85rem; margin-top: 1.75rem; text-align: center; }
-  .aside .cta { width: 100%; max-width: 320px; }
-  .aside p { max-width: 460px; font-size: .85rem; color: var(--ink-3); }
+  .aside { margin-top: 1.75rem; }
   .picker { display: none; }
   .mh { padding-block: 2.25rem; }
   .page { grid-template-columns: 220px minmax(0, 1fr) 320px; align-items: start; padding-block: 1.75rem 3rem; }
@@ -248,6 +248,3 @@ details.ext .kv { margin-top: .5rem; }
 }
 
 .mosque-header { display: grid; gap: .5rem; }
-.about { max-width: 720px; padding-block: .5rem 1.5rem; text-align: center; }
-.about h2 { font-size: .95rem; font-weight: 700; margin-bottom: .4rem; }
-.about p { font-size: .82rem; line-height: 1.6; color: var(--ink-3); text-wrap: pretty; }
