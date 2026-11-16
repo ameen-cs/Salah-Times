@@ -13,11 +13,21 @@ import { getPool, queryRows, upsertRows, BadRequest } from "../lib/database.mjs"
 
 export const config = { path: "/api/db" };
 
-const json = (body, status = 200) =>
+const json = (body, status = 200, headers = { "Cache-Control": "no-store" }) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    headers: { "Content-Type": "application/json", ...headers },
   });
+
+// Public reads are cached at Netlify's CDN so most page views never reach the database
+// (each query wakes it, and database compute is what costs credits). Browsers always
+// revalidate; the CDN serves for 5 minutes and refreshes in the background. The admin
+// page sends nocache=1 so it always sees live data.
+const PUBLIC_READ_HEADERS = {
+  "Cache-Control": "public, max-age=0, must-revalidate",
+  "Netlify-CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
+  "Netlify-Vary": "query",
+};
 
 // Compare digests so length differences don't leak through timing
 function passwordMatches(given, expected) {
@@ -33,7 +43,9 @@ export function createHandler({ pool = getPool, env = process.env, delay = ms =>
     try {
       if (req.method === "GET") {
         const filters = Object.fromEntries(url.searchParams.entries());
-        return json(await queryRows(await pool(), filters));
+        const nocache = "nocache" in filters;
+        delete filters.nocache;
+        return json(await queryRows(await pool(), filters), 200, nocache ? undefined : PUBLIC_READ_HEADERS);
       }
 
       if (req.method === "POST") {

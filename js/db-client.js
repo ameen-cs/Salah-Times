@@ -19,7 +19,10 @@ class DbClient {
 
   // The `table` argument is kept for call-site compatibility; there is one table.
   async query(table, filters = {}) {
-    const qs = new URLSearchParams(filters).toString();
+    // Visitors get CDN-cached reads; a logged-in admin bypasses the cache to see live data.
+    const params = new URLSearchParams(filters);
+    if (this._password()) params.set("nocache", "1");
+    const qs = params.toString();
     try {
       const res = await fetch(qs ? `${this.endpoint}?${qs}` : this.endpoint);
       if (!res.ok) return null;

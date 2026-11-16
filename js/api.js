@@ -943,6 +943,9 @@ class SalahTimesAPI {
   }
 
   async _saveToDb(mosque, data) {
+    // Visitors can't write (no admin password), so skip the lock-check read too — it
+    // would only wake the database. The server-side sync's db has no _password(), so it proceeds.
+    if (typeof db._password === "function" && !db._password()) return;
     // A manually-set Khateeb (updated_by = "admin") wins and must survive the sync.
     // Read the row's current marker first so a stale tab can't clobber a fresh admin
     // edit, and keep this.overrides in sync so display picks up the lock immediately.
