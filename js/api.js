@@ -810,11 +810,20 @@ class SalahTimesAPI {
       if (m) special_times = { zohr: { sunday: m[1] } };
     }
 
+    // Notice card: <h5 class="card-header">Jumu'ah Bayaan</h5> + <p class="card-text">Speaker</p>
+    let juma_speaker = null;
+    for (const card of doc.querySelectorAll(".float-box-fluid")) {
+      const head = card.querySelector(".card-header")?.textContent || "";
+      if (!/jumu?'?ah|jummah|juma/i.test(head) || !/bayaan|bayan|khateeb|khatib|speaker/i.test(head)) continue;
+      const name = this._cleanSpeaker(card.querySelector(".card-text")?.textContent.trim());
+      if (name) { juma_speaker = name; break; }
+    }
+
     return {
       fajr: fajr.jamaat, zohr: zuhr.jamaat, asar: asr.jamaat,
       maghrib: magh.jamaat, esha: esha.jamaat,
       adhan,
-      juma_adhan: juma.adhan, juma_khutbah: juma.jamaat, juma_sunan: null, juma_speaker: null, juma_note: null,
+      juma_adhan: juma.adhan, juma_khutbah: juma.jamaat, juma_sunan: null, juma_speaker, juma_note: null,
       early_zohr: null,
       next_change: null,
       extended_times: Object.keys(ext).length ? ext : null,

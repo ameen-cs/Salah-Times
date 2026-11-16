@@ -95,7 +95,7 @@ class SalahTimesApp {
   // ── Main render ───────────────────────────────────────────────────────────
 
   placeOf(mosque) {
-    return { ballito: "Ballito", blythedale: "Blythedale Beach", glenhills: "Glen Hills", chakaskraal: "Chakas Kraal" }[mosque.id]
+    return { ballito: "Ballito", blythedale: "Blythedale Beach", glenhills: "Glen Hills", chakaskraal: "Shakaskraal" }[mosque.id]
       || "KwaDukuza (Stanger)";
   }
 

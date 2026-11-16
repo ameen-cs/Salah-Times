@@ -68,7 +68,7 @@
       { "@type": "Mosque", "name": "Sunnypark Musallah",          "address": { "@type": "PostalAddress", "addressLocality": "KwaDukuza (Stanger)", "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
       { "@type": "Mosque", "name": "Glenhills Musallah",          "address": { "@type": "PostalAddress", "addressLocality": "Glen Hills",           "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
       { "@type": "Mosque", "name": "Ballito Jamia Masjid",            "address": { "@type": "PostalAddress", "addressLocality": "Ballito",              "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } },
-      { "@type": "Mosque", "name": "Chakaskraal Musjid",          "address": { "@type": "PostalAddress", "addressLocality": "Chakas Kraal",         "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } }
+      { "@type": "Mosque", "name": "Chakaskraal Musjid",          "address": { "@type": "PostalAddress", "addressLocality": "Shakaskraal",         "addressRegion": "KwaZulu-Natal", "addressCountry": "ZA" } }
     ]
   }
   </script>
@@ -82,7 +82,7 @@
       { "@type": "Question", "name": "Are these Jamaat times or start times?",
         "acceptedAnswer": { "@type": "Answer", "text": "All times listed are Jamaat times — when the congregational prayer is performed at each masjid." } },
       { "@type": "Question", "name": "Does this include Ballito and Chakaskraal?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Besides Stanger (KwaDukuza), the site covers Ballito, Chakas Kraal, Glen Hills and Blythedale Beach." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Besides Stanger (KwaDukuza), the site covers Ballito, Shakaskraal, Glen Hills and Blythedale Beach." } }
     ]
   }
   </script>
@@ -504,7 +504,7 @@
 
       // Area filter + display labels (config.js has no area field)
       areaOf(mosque)  { return { ballito: "Ballito", blythedale: "Other", glenhills: "Other", chakaskraal: "Other" }[mosque.id] || "Stanger"; }
-      placeOf(mosque) { return { ballito: "Ballito", blythedale: "Blythedale Beach", glenhills: "Glen Hills", chakaskraal: "Chakas Kraal" }[mosque.id] || "KwaDukuza (Stanger)"; }
+      placeOf(mosque) { return { ballito: "Ballito", blythedale: "Blythedale Beach", glenhills: "Glen Hills", chakaskraal: "Shakaskraal" }[mosque.id] || "KwaDukuza (Stanger)"; }
       inArea(mosque)  { return this.area === "all" || this.areaOf(mosque) === this.area; }
       fmt(t)          { return t && t !== "—" ? String(t).replace(/^(\d):/, "0$1:") : "—"; }
 
