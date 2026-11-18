@@ -50,6 +50,7 @@ class SalahTimesApp {
 
   bindEvents() {
     document.getElementById("refresh-btn").addEventListener("click", () => {
+      db.bypassCache = true;
       api.clearCache(this.selectedMosqueId);
       this.selectMosque(this.selectedMosqueId);
     });

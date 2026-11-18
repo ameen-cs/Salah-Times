@@ -20,12 +20,14 @@ const json = (body, status = 200, headers = { "Cache-Control": "no-store" }) =>
   });
 
 // Public reads are cached at Netlify's CDN so most page views never reach the database
-// (each query wakes it, and database compute is what costs credits). Browsers always
-// revalidate; the CDN serves for 5 minutes and refreshes in the background. The admin
-// page sends nocache=1 so it always sees live data.
+// (each query wakes it, and database compute is what costs credits). The cache has to
+// outlast the database's 5-minute sleep timer or steady traffic keeps it awake all day,
+// so the CDN serves for 6 hours and refreshes in the background. The stored rows only
+// change on the 3 daily syncs or an admin edit. Browsers always revalidate. The admin
+// page, a hard refresh and the Refresh button send nocache=1 to get live data.
 const PUBLIC_READ_HEADERS = {
   "Cache-Control": "public, max-age=0, must-revalidate",
-  "Netlify-CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
+  "Netlify-CDN-Cache-Control": "public, s-maxage=21600, stale-while-revalidate=86400",
   "Netlify-Vary": "query",
 };
 

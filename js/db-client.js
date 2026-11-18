@@ -10,6 +10,13 @@
 class DbClient {
   constructor(endpoint) {
     this.endpoint = endpoint;
+    // A page reload (F5 / Ctrl+F5 / pull-to-refresh) skips the CDN cache so the visitor
+    // sees the latest stored data at once. The Refresh button sets this too.
+    this.bypassCache = false;
+    try {
+      const nav = performance.getEntriesByType("navigation")[0];
+      this.bypassCache = nav?.type === "reload";
+    } catch { /* older browsers: normal cached reads */ }
   }
 
   // The password is kept only for this tab's session, after a successful login
@@ -21,7 +28,7 @@ class DbClient {
   async query(table, filters = {}) {
     // Visitors get CDN-cached reads; a logged-in admin bypasses the cache to see live data.
     const params = new URLSearchParams(filters);
-    if (this._password()) params.set("nocache", "1");
+    if (this._password() || this.bypassCache) params.set("nocache", "1");
     const qs = params.toString();
     try {
       const res = await fetch(qs ? `${this.endpoint}?${qs}` : this.endpoint);

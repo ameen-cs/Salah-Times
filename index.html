@@ -204,6 +204,7 @@
         this.bindFilters();
         this.loadAll();
         document.getElementById("refresh-btn").addEventListener("click", () => {
+          db.bypassCache = true;
           MOSQUES.forEach(m => api.clearCache(m.id));
           this.allResults = null;
           this.loadAll();
