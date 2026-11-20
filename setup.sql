@@ -1,5 +1,5 @@
--- Reference copy of the schema. Netlify applies the migration in
--- netlify/database/migrations/ on deploy; this file only mirrors it for reading.
+-- Schema for the Supabase database the site uses. Run it once in the Supabase SQL editor.
+-- (netlify/database/migrations/ holds the same table for the old Netlify Database.)
 
 CREATE TABLE IF NOT EXISTS salah_times (
   id             uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -25,3 +25,8 @@ CREATE TABLE IF NOT EXISTS salah_times (
   updated_at     timestamptz DEFAULT now(),
   updated_by     text
 );
+
+-- Row-level security is left OFF so the site's server functions can write with the anon
+-- key. Anyone holding that key can read and write this table, so move to a private
+-- server-side key and turn RLS on (ALTER TABLE salah_times ENABLE ROW LEVEL SECURITY)
+-- when possible.
