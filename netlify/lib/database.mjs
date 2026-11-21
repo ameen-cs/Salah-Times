@@ -83,12 +83,12 @@ export async function upsertRows(db, input) {
         : TIME_COLUMNS.includes(key) ? String(value)
         : String(value);
     }
-    // mosque_name is NOT NULL, so a brand-new row needs one. Fall back to the id, but
-    // only for the insert: an existing row keeps its real name when none is sent.
+    // mosque_name is NOT NULL and Postgres checks that on the proposed insert row even
+    // when the row already exists, so every write must carry a name. When none is sent,
+    // reuse the stored one (so it stays unchanged), or fall back to the id for a new row.
     if (data.mosque_name == null) {
-      delete data.mosque_name;
-      const existing = await rest(db, `${TABLE}?select=mosque_id&mosque_id=eq.${encodeURIComponent(data.mosque_id)}`);
-      if (!existing.length) data.mosque_name = data.mosque_id;
+      const existing = await rest(db, `${TABLE}?select=mosque_name&mosque_id=eq.${encodeURIComponent(data.mosque_id)}`);
+      data.mosque_name = existing[0]?.mosque_name || data.mosque_id;
     }
     const rows = await rest(db, `${TABLE}?on_conflict=mosque_id`, {
       method: "POST",
